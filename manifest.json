@@ -1,0 +1,25 @@
+{
+  "name": "晚餐菜單產生器",
+  "short_name": "晚餐菜單",
+  "description": "一家五口三菜一湯，60分鐘上菜",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#faf9f6",
+  "theme_color": "#c17d3c",
+  "orientation": "portrait-primary",
+  "lang": "zh-TW",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
