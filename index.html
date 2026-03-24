@@ -642,9 +642,9 @@ async function doGenerate(slotIdx) {
 規則：台灣菜市場容易買到的食材，備餐加烹飪在60分鐘內，份量已是3人份。`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+    const res = await fetch('https://dinner.pon76124.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
     });
     if (!res.ok) throw new Error(`API ${res.status}`);
