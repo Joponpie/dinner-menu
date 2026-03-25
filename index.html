@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="晚餐助手">
+<meta name="theme-color" content="#c17d3c">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>晚餐助手</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#faf9f6;--surface:#fff;--border:#e8e4dc;--border-hover:#c8c3b8;
+  --text-primary:#1a1814;--text-secondary:#6b6760;--text-muted:#9e9a94;
+  --accent:#c17d3c;--accent-light:#f5ede0;--accent-dark:#8f5a28;
+  --green-bg:#edf5ec;--green-text:#2a6b38;
+  --amber-bg:#fdf3e3;--amber-text:#8f5a28;
+  --blue-bg:#edf4fb;--blue-text:#1e5f9e;
+  --purple-bg:#f0eefb;--purple-text:#4a3b9e;
+  --red-bg:#fdf0f0;--red-text:#9e2a2a;
+  --gold-bg:#fffbea;--gold-text:#92620a;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --r-sm:6px;--r-md:10px;--r-lg:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text-primary);padding-bottom:calc(60px + var(--safe-bottom))}
+
+.page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:calc(12px + var(--safe-top)) 16px 0;position:sticky;top:0;z-index:20}
+.header-row{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px}
+.page-header h1{font-family:'Noto Serif TC',serif;font-size:18px;font-weight:600}
+.tab-bar{display:flex;border-bottom:1px solid var(--border)}
+.tab-btn{flex:1;padding:10px 0;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:none;border:none;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+
+.page{display:none;padding:16px}
+.page.active{display:block}
+
+/* Day strip */
+.day-row{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.day-strip{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1}
+.day-strip::-webkit-scrollbar{display:none}
+.day-btn{padding:6px 14px;font-size:13px;font-family:'Noto Sans TC',sans-serif;border:1px solid var(--border);border-radius:20px;background:var(--surface);color:var(--text-secondary);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.day-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:500}
+.refresh-btn{flex-shrink:0;padding:6px 12px;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:var(--accent-light);border:1px solid #e8c8a0;border-radius:20px;color:var(--accent-dark);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.refresh-btn:active{opacity:.8}
+.refresh-icon{font-size:13px}
+
+/* Menu grid */
+.menu-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.dish-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;cursor:pointer;position:relative;min-height:95px;display:flex;flex-direction:column;gap:5px}
+.dish-card:active{opacity:.8}
+.dish-card.active{border:2px solid var(--accent);background:#fffaf5}
+.dish-tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;align-self:flex-start}
+.tag-meat{background:#fdeee6;color:#993C1D}
+.tag-veg{background:var(--green-bg);color:var(--green-text)}
+.tag-soup{background:var(--blue-bg);color:var(--blue-text)}
+.tag-egg{background:var(--amber-bg);color:var(--amber-text)}
+.tag-noodle{background:#f3e8ff;color:#6b21a8}
+.tag-pasta{background:#fce7f3;color:#9d174d}
+.dish-name{font-size:13px;font-weight:500;color:var(--text-primary);line-height:1.4}
+.dish-time{font-size:11px;color:var(--text-muted);margin-top:auto}
+.edit-badge{position:absolute;top:8px;right:8px;font-size:10px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);padding:2px 6px;cursor:pointer}
+
+/* Panels */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:14px;display:none}
+.panel.show{display:block}
+.panel-label{font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:10px}
+.panel-label span{font-size:12px;color:var(--text-muted);font-weight:400}
+
+/* Inputs */
+.input-row{display:flex;gap:8px;align-items:center}
+.input-row input,.big-input{width:100%;padding:10px 12px;font-size:14px;font-family:'Noto Sans TC',sans-serif;border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg);color:var(--text-primary);outline:none;-webkit-appearance:none}
+.input-row input:focus,.big-input:focus{border-color:var(--accent)}
+.big-input{min-height:100px;resize:none;line-height:1.6}
+
+/* Buttons */
+.btn-accent{padding:10px 16px;font-size:13px;font-family:'Noto Sans TC',sans-serif;font-weight:500;background:var(--accent);color:#fff;border:none;border-radius:var(--r-md);cursor:pointer;display:flex;align-items:center;gap:6px;justify-content:center;white-space:nowrap}
+.btn-accent:disabled{opacity:.5}
+.btn-accent.full{width:100%;margin-top:10px;padding:12px;font-size:14px}
+.btn-outline{padding:8px 14px;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:none;border:1px solid var(--border);border-radius:var(--r-md);color:var(--text-secondary);cursor:pointer}
+.btn-save{padding:7px 12px;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:var(--gold-bg);border:1px solid #e6c97a;border-radius:var(--r-md);color:var(--gold-text);cursor:pointer;font-weight:500}
+.btn-save.saved{background:#e8f5e9;color:#2a6b38;border-color:#a5d6a7}
+.spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.spinner.show{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Detail */
+.detail-header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.detail-title{font-family:'Noto Serif TC',serif;font-size:16px;font-weight:600;flex:1}
+.detail-time{font-size:11px;color:var(--text-muted);background:var(--bg);padding:3px 8px;border-radius:20px;border:1px solid var(--border)}
+.ai-badge{font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:2px 8px;border-radius:20px;font-weight:500}
+.section-label{font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;margin-top:14px}
+.section-label:first-child{margin-top:0}
+.ing-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+.ing-row:last-child{border-bottom:none}
+.ing-cat-label{font-size:10px;font-weight:600;color:var(--accent-dark);background:var(--accent-light);padding:3px 8px;border-radius:var(--r-sm);margin:8px 0 4px;display:inline-block}
+.ing-amt{color:var(--text-secondary)}
+.steps-list{list-style:none}
+.steps-list li{display:flex;gap:8px;font-size:13px;line-height:1.6;margin-bottom:8px}
+.step-num{min-width:20px;height:20px;background:var(--accent-light);color:var(--accent-dark);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;margin-top:2px;flex-shrink:0}
+
+/* Ingredient checklist */
+.ing-list-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:14px}
+.ing-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ing-list-title{font-size:13px;font-weight:500;color:var(--text-primary)}
+.ing-list-hint{font-size:11px;color:var(--text-muted)}
+.ing-check-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.ing-check-row:last-child{border-bottom:none}
+.ing-check-row.have .ing-check-name{color:var(--text-muted);text-decoration:line-through}
+.ing-check-row.have .ing-check-amt{color:var(--text-muted)}
+.ing-checkbox{width:18px;height:18px;border:1.5px solid var(--border-hover);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface);transition:all .15s}
+.ing-checkbox.checked{background:var(--green-text);border-color:var(--green-text)}
+.ing-checkbox.checked::after{content:'✓';color:#fff;font-size:11px;font-weight:700}
+.ing-check-name{font-size:13px;color:var(--text-primary);flex:1}
+.ing-check-amt{font-size:12px;color:var(--text-secondary);white-space:nowrap}
+.need-buy-badge{font-size:10px;background:#fff3e0;color:#e65100;padding:2px 6px;border-radius:20px;white-space:nowrap}
+
+/* Error */
+.err-msg{font-size:12px;color:var(--red-text);background:var(--red-bg);padding:8px 12px;border-radius:var(--r-md);margin-top:8px;display:none}
+.err-msg.show{display:block}
+.clear-link{font-size:12px;color:var(--text-muted);margin-top:8px}
+.clear-link a{color:var(--accent);text-decoration:underline;cursor:pointer}
+
+/* Fridge */
+.fridge-result{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-top:14px;display:none}
+.fridge-result.show{display:block}
+.fridge-dish-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;margin-bottom:10px;cursor:pointer}
+.fridge-dish-card:active{opacity:.8}
+.fridge-dish-name{font-size:14px;font-weight:500;margin-bottom:4px}
+.fridge-dish-desc{font-size:12px;color:var(--text-secondary);line-height:1.5}
+.fridge-dish-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;margin-bottom:6px;background:var(--green-bg);color:var(--green-text);font-weight:500}
+
+/* Saved */
+.saved-empty{text-align:center;padding:48px 20px;color:var(--text-muted);font-size:14px;line-height:2.2}
+.saved-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:12px}
+.saved-card-header{display:flex;align-items:center;gap:8px;cursor:pointer}
+.saved-card-title{font-family:'Noto Serif TC',serif;font-size:15px;font-weight:600;flex:1}
+.saved-card-tag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.saved-card-time{font-size:11px;color:var(--text-muted)}
+.saved-expand{font-size:12px;color:var(--text-muted);margin-left:auto}
+.saved-card-body{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.saved-card-body.show{display:block}
+.saved-actions{display:flex;gap:8px;margin-top:12px}
+.btn-delete{padding:7px 12px;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:var(--red-bg);border:1px solid #f5c0c0;border-radius:var(--r-md);color:var(--red-text);cursor:pointer}
+
+/* Loading */
+.loading-overlay{position:fixed;inset:0;background:rgba(250,249,246,.92);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+.loading-overlay.show{display:flex}
+.loading-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+.loading-text{font-size:14px;color:var(--text-secondary)}
+
+.footer-note{font-size:11px;color:var(--text-muted);padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="header-row">
+    <h1>晚餐助手</h1>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('menu')">本週菜單</button>
+    <button class="tab-btn" onclick="switchTab('fridge')">冰箱食材</button>
+    <button class="tab-btn" onclick="switchTab('saved')">收藏食譜</button>
+  </div>
+</div>
+
+<!-- 本週菜單 -->
+<div class="page active" id="page-menu">
+  <div class="day-row">
+    <div class="day-strip" id="dayStrip"></div>
+    <button class="refresh-btn" onclick="refreshMenu()" id="refreshBtn">
+      <span class="refresh-icon">↻</span>換菜單
+    </button>
+  </div>
+  <div class="menu-grid" id="menuGrid"></div>
+  <div class="panel" id="customPanel"></div>
+  <div class="panel" id="detailPanel"></div>
+  <div class="ing-list-card" id="ingListCard" style="display:none;"></div>
+  <div class="footer-note">點選菜色卡片查看食譜，右上角「自訂」可更換菜色，「↻ 換菜單」隨機產生新菜色。</div>
+</div>
+
+<!-- 冰箱食材 -->
+<div class="page" id="page-fridge">
+  <div class="panel show">
+    <div class="panel-label">冰箱有什麼？<span>輸入食材，幫你想菜色</span></div>
+    <textarea class="big-input" id="fridgeInput" placeholder="例如：豬肉、豆腐、青江菜、雞蛋、番茄、洋蔥…&#10;&#10;不用格式，隨便打就好！"></textarea>
+    <button class="btn-accent full" id="fridgeBtn" onclick="analyzeFridge()">
+      <div class="spinner" id="fridgeSpinner"></div>
+      <span id="fridgeBtnText">幫我想菜色</span>
+    </button>
+    <div class="err-msg" id="fridgeErr"></div>
+  </div>
+  <div class="fridge-result" id="fridgeResult"></div>
+</div>
+
+<!-- 收藏食譜 -->
+<div class="page" id="page-saved">
+  <div id="savedList"></div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">生成中...</div>
+</div>
+
+<script>
+const WORKER_URL = 'https://dinner.pon76124.workers.dev';
+const SCALE = 3.0;
+const SLOT_LABELS = ['肉類','蔬菜','蛋類/豆腐','湯品'];
+const SLOT_TAG_NAMES = ['肉類','蔬菜','蛋類','湯品'];
+const SLOT_TAGS = ['tag-meat','tag-veg','tag-egg','tag-soup'];
+const TAG_MAP = {'肉類':'tag-meat','蔬菜':'tag-veg','蛋類':'tag-egg','湯品':'tag-soup','麵食':'tag-noodle','義大利麵':'tag-pasta'};
+
+// ── 預設菜庫 ──────────────────────────────────────
+const DISH_POOL = {"meat":[{"name":"薑絲炒肉絲","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"豬肉絲","unit":"g","amount":450},{"name":"薑絲","unit":"g","amount":30},{"name":"醬油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":15},{"name":"太白粉","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":3}],"steps":["豬肉絲加醬油、米酒、太白粉醃10分鐘。","起鍋熱油，爆香薑絲至微焦。","放入肉絲大火快炒至變色。","加鹽調味即可起鍋。"],"tagClass":"tag-meat"},{"name":"洋蔥炒豬排","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"薄切豬排","unit":"g","amount":450},{"name":"洋蔥","unit":"g","amount":200},{"name":"醬油","unit":"cc","amount":25},{"name":"味醂","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豬排用醬油、味醂、糖醃10分鐘。","洋蔥切絲，熱油炒至半透明。","放入豬排煎至兩面金黃。","倒入醃料炒勻，燒至收汁。"],"tagClass":"tag-meat"},{"name":"糖醋排骨","time":"約 30 分鐘","tag":"肉類","ingredients":[{"name":"小排骨","unit":"g","amount":600},{"name":"醬油","unit":"cc","amount":30},{"name":"白醋","unit":"cc","amount":40},{"name":"糖","unit":"g","amount":40},{"name":"番茄醬","unit":"cc","amount":40},{"name":"太白粉","unit":"g","amount":30},{"name":"沙拉油","unit":"cc","amount":300}],"steps":["排骨汆燙後拍乾裹太白粉。","熱油炸至金黃後撈起。","另起鍋煮醬汁至滾。","放入排骨翻炒至醬汁收裹均勻。"],"tagClass":"tag-meat"},{"name":"滷豬五花","time":"約 50 分鐘","tag":"肉類","ingredients":[{"name":"豬五花肉","unit":"g","amount":600},{"name":"醬油","unit":"cc","amount":80},{"name":"米酒","unit":"cc","amount":40},{"name":"糖","unit":"g","amount":20},{"name":"蔥段","unit":"g","amount":25},{"name":"薑片","unit":"g","amount":20},{"name":"八角","unit":"顆","amount":2},{"name":"水","unit":"cc","amount":500}],"steps":["五花肉汆燙後煎至表面上色。","加入所有調料與水，大火燒開。","轉小火燜煮40分鐘至軟爛。","開大火收汁即可。"],"tagClass":"tag-meat"},{"name":"蒜泥白肉","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"豬五花肉","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":20},{"name":"醬油","unit":"cc","amount":30},{"name":"辣油","unit":"cc","amount":10},{"name":"香油","unit":"cc","amount":10},{"name":"糖","unit":"g","amount":5},{"name":"蔥絲","unit":"g","amount":15}],"steps":["五花肉冷水下鍋煮20分鐘至熟。","撈起放涼後切薄片排盤。","調蒜泥醬汁淋上。","撒蔥絲即可。"],"tagClass":"tag-meat"},{"name":"客家小炒","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"豬五花肉片","unit":"g","amount":200},{"name":"乾魷魚","unit":"g","amount":50},{"name":"豆乾","unit":"g","amount":150},{"name":"芹菜","unit":"g","amount":100},{"name":"醬油","unit":"cc","amount":25},{"name":"米酒","unit":"cc","amount":20},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["乾魷魚泡發切條，豆乾切條，芹菜切段。","熱鍋先炒五花肉至出油。","加魷魚、豆乾大火翻炒。","加芹菜、醬油、米酒炒勻即可。"],"tagClass":"tag-meat"},{"name":"梅干扣肉","time":"約 60 分鐘","tag":"肉類","ingredients":[{"name":"豬五花肉","unit":"g","amount":500},{"name":"梅干菜","unit":"g","amount":100},{"name":"醬油","unit":"cc","amount":50},{"name":"米酒","unit":"cc","amount":30},{"name":"糖","unit":"g","amount":15},{"name":"薑片","unit":"g","amount":10}],"steps":["五花肉汆燙後抹醬油炸至表面金黃。","切厚片，梅干菜泡洗切碎。","五花肉皮朝下排碗，鋪梅干菜加調料。","電鍋外鍋2杯水蒸至軟爛，扣盤即可。"],"tagClass":"tag-meat"},{"name":"蒼蠅頭","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"豬絞肉","unit":"g","amount":250},{"name":"韭菜花","unit":"g","amount":200},{"name":"豆豉","unit":"g","amount":25},{"name":"辣椒","unit":"根","amount":2},{"name":"醬油","unit":"cc","amount":15},{"name":"米酒","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["韭菜花切小段，辣椒切圈。","熱鍋爆香豆豉與辣椒。","加絞肉炒散炒熟。","放韭菜花、醬油、米酒大火翻炒均勻。"],"tagClass":"tag-meat"},{"name":"菜脯肉末炒","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"豬絞肉","unit":"g","amount":250},{"name":"菜脯","unit":"g","amount":60},{"name":"醬油","unit":"cc","amount":15},{"name":"蔥花","unit":"g","amount":15},{"name":"沙拉油","unit":"cc","amount":15}],"steps":["菜脯洗去多餘鹽分切碎。","熱鍋炒香菜脯。","加絞肉炒熟炒散。","加醬油調味，撒蔥花即可。"],"tagClass":"tag-meat"},{"name":"豬肉燒白菜粉絲","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"豬五花肉片","unit":"g","amount":250},{"name":"大白菜","unit":"g","amount":400},{"name":"粉絲","unit":"g","amount":40},{"name":"醬油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":15},{"name":"薑片","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":15}],"steps":["粉絲泡軟，白菜切段。","熱鍋爆香薑片，加肉片炒至變色。","加白菜翻炒軟化，加粉絲。","加醬油、米酒燒至入味。"],"tagClass":"tag-meat"},{"name":"三杯雞","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"雞腿肉","unit":"g","amount":600},{"name":"九層塔","unit":"g","amount":20},{"name":"薑片","unit":"g","amount":20},{"name":"蒜頭","unit":"g","amount":25},{"name":"醬油","unit":"cc","amount":40},{"name":"米酒","unit":"cc","amount":40},{"name":"麻油","unit":"cc","amount":25},{"name":"糖","unit":"g","amount":12}],"steps":["雞腿肉切塊，麻油爆香薑片至微焦。","加蒜頭炒香，放雞肉翻炒上色。","加醬油、米酒、糖，蓋鍋小火燜10分鐘。","開大火收汁，放九層塔炒勻。"],"tagClass":"tag-meat"},{"name":"宮保雞丁","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"雞胸肉","unit":"g","amount":450},{"name":"花生","unit":"g","amount":60},{"name":"乾辣椒","unit":"g","amount":8},{"name":"蔥段","unit":"g","amount":25},{"name":"醬油","unit":"cc","amount":25},{"name":"烏醋","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":10},{"name":"太白粉","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["雞胸切丁醃10分鐘。","調好醬汁備用。","熱鍋爆香乾辣椒與蔥段，放雞丁炒熟。","倒入醬汁與花生翻炒均勻。"],"tagClass":"tag-meat"},{"name":"蔥油雞","time":"約 30 分鐘","tag":"肉類","ingredients":[{"name":"雞腿","unit":"隻","amount":2},{"name":"蔥","unit":"g","amount":40},{"name":"薑","unit":"g","amount":15},{"name":"鹽","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":50},{"name":"米酒","unit":"cc","amount":20}],"steps":["雞腿冷水下鍋加薑、米酒煮20分鐘。","撈起放涼切塊排盤。","蔥薑切末加鹽拌勻。","燒熱油淋在蔥薑上，再淋雞塊即可。"],"tagClass":"tag-meat"},{"name":"照燒雞腿","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"雞腿","unit":"隻","amount":3},{"name":"醬油","unit":"cc","amount":40},{"name":"味醂","unit":"cc","amount":30},{"name":"米酒","unit":"cc","amount":20},{"name":"糖","unit":"g","amount":15},{"name":"沙拉油","unit":"cc","amount":15}],"steps":["雞腿用醬油、味醂、米酒、糖醃20分鐘。","平底鍋下油，雞皮朝下煎至金黃。","翻面煎熟，倒入醃料燒至收汁。","切塊盛盤。"],"tagClass":"tag-meat"},{"name":"客家薑絲炒雞","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"雞腿肉","unit":"g","amount":500},{"name":"嫩薑","unit":"g","amount":100},{"name":"米酒","unit":"cc","amount":60},{"name":"麻油","unit":"cc","amount":25},{"name":"醬油","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":3}],"steps":["雞腿肉切塊，薑切絲。","麻油爆香薑絲至微焦。","放入雞肉大火翻炒至變色。","加米酒、醬油、鹽炒至熟透。"],"tagClass":"tag-meat"},{"name":"雞肉咖哩","time":"約 35 分鐘","tag":"肉類","ingredients":[{"name":"雞腿肉","unit":"g","amount":500},{"name":"馬鈴薯","unit":"g","amount":250},{"name":"紅蘿蔔","unit":"g","amount":120},{"name":"洋蔥","unit":"g","amount":200},{"name":"咖哩塊","unit":"g","amount":100},{"name":"水","unit":"cc","amount":600},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["所有食材切塊備用。","熱鍋炒香洋蔥，加雞肉炒至變色。","加馬鈴薯、紅蘿蔔翻炒，加水煮滾。","轉小火煮15分鐘，加咖哩塊煮至濃稠。"],"tagClass":"tag-meat"},{"name":"泰式打拋雞","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"雞絞肉","unit":"g","amount":450},{"name":"九層塔","unit":"g","amount":20},{"name":"辣椒","unit":"根","amount":3},{"name":"蒜末","unit":"g","amount":15},{"name":"魚露","unit":"cc","amount":20},{"name":"蠔油","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["蒜末與辣椒爆香。","加雞絞肉炒散炒熟。","加魚露、蠔油、糖調味翻炒。","起鍋前放九層塔快炒即可。"],"tagClass":"tag-meat"},{"name":"香烤雞翅","time":"約 35 分鐘","tag":"肉類","ingredients":[{"name":"雞翅","unit":"隻","amount":9},{"name":"醬油","unit":"cc","amount":40},{"name":"蜂蜜","unit":"cc","amount":25},{"name":"米酒","unit":"cc","amount":20},{"name":"蒜末","unit":"g","amount":15},{"name":"薑末","unit":"g","amount":10}],"steps":["雞翅用所有調料醃30分鐘以上。","烤箱預熱200度。","雞翅排烤盤烤20分鐘至表面焦香。","中途翻面一次。"],"tagClass":"tag-meat"},{"name":"麻油雞","time":"約 30 分鐘","tag":"肉類","ingredients":[{"name":"雞腿肉","unit":"g","amount":500},{"name":"老薑","unit":"g","amount":60},{"name":"麻油","unit":"cc","amount":40},{"name":"米酒","unit":"cc","amount":100},{"name":"醬油","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":3}],"steps":["老薑切片，麻油大火爆香至微焦。","加雞肉翻炒至表面上色。","加米酒、醬油，蓋鍋中火燜15分鐘。","加鹽調味即可。"],"tagClass":"tag-meat"},{"name":"鹽焗雞","time":"約 40 分鐘","tag":"肉類","ingredients":[{"name":"雞腿","unit":"隻","amount":2},{"name":"沙拉油","unit":"cc","amount":300},{"name":"鹽","unit":"g","amount":200},{"name":"薑片","unit":"g","amount":10},{"name":"香葉","unit":"片","amount":2},{"name":"八角","unit":"顆","amount":1}],"steps":["雞腿用廚房紙巾吸乾水分。","鹽加香料在鍋中炒熱，埋入雞腿。","蓋鍋中火燜30分鐘，中途翻面。","取出刷上熱油即可。"],"tagClass":"tag-meat"},{"name":"蔥爆牛肉","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"牛肉片","unit":"g","amount":400},{"name":"蔥段","unit":"g","amount":80},{"name":"醬油","unit":"cc","amount":25},{"name":"米酒","unit":"cc","amount":20},{"name":"太白粉","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":25},{"name":"糖","unit":"g","amount":5}],"steps":["牛肉片加醬油、太白粉醃10分鐘。","熱鍋大火下油，牛肉快炒至變色後起鍋。","同鍋爆香蔥段。","放回牛肉，加米酒、糖翻炒均勻即可。"],"tagClass":"tag-meat"},{"name":"番茄炒牛肉","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"牛肉片","unit":"g","amount":350},{"name":"番茄","unit":"g","amount":300},{"name":"醬油","unit":"cc","amount":20},{"name":"太白粉","unit":"g","amount":8},{"name":"糖","unit":"g","amount":8},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["牛肉片醃好備用。","番茄切塊，熱鍋炒出湯汁加糖鹽調味。","推到一邊，放入牛肉快炒至變色。","與番茄拌勻即可。"],"tagClass":"tag-meat"},{"name":"黑胡椒牛柳","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"牛里肌肉","unit":"g","amount":400},{"name":"洋蔥","unit":"g","amount":150},{"name":"青椒","unit":"g","amount":80},{"name":"黑胡椒醬","unit":"cc","amount":40},{"name":"醬油","unit":"cc","amount":15},{"name":"太白粉","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["牛肉切條，醃10分鐘。","洋蔥、青椒切條備用。","大火炒牛肉至變色後起鍋。","同鍋炒蔬菜，放回牛肉加黑胡椒醬翻炒。"],"tagClass":"tag-meat"},{"name":"紅燒牛腩","time":"約 60 分鐘","tag":"肉類","ingredients":[{"name":"牛腩","unit":"g","amount":600},{"name":"白蘿蔔","unit":"g","amount":300},{"name":"醬油","unit":"cc","amount":60},{"name":"米酒","unit":"cc","amount":40},{"name":"豆瓣醬","unit":"g","amount":20},{"name":"糖","unit":"g","amount":10},{"name":"薑片","unit":"g","amount":15},{"name":"水","unit":"cc","amount":600}],"steps":["牛腩切塊汆燙備用。","爆香薑片，加豆瓣醬炒香。","放牛腩加所有調料與水，大火燒開。","轉小火燜50分鐘，加蘿蔔再煮10分鐘。"],"tagClass":"tag-meat"},{"name":"壽喜燒牛肉","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"牛肉火鍋片","unit":"g","amount":400},{"name":"板豆腐","unit":"g","amount":200},{"name":"大白菜","unit":"g","amount":200},{"name":"醬油","unit":"cc","amount":40},{"name":"味醂","unit":"cc","amount":40},{"name":"糖","unit":"g","amount":15},{"name":"米酒","unit":"cc","amount":30}],"steps":["調好壽喜燒醬汁。","平底鍋煮滾醬汁。","依序放蔬菜、豆腐煮熟。","加牛肉片涮熟即可食用。"],"tagClass":"tag-meat"},{"name":"沙茶牛肉炒空心菜","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"牛肉片","unit":"g","amount":350},{"name":"空心菜","unit":"g","amount":250},{"name":"沙茶醬","unit":"g","amount":35},{"name":"醬油","unit":"cc","amount":15},{"name":"米酒","unit":"cc","amount":15},{"name":"太白粉","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["牛肉片醃好備用。","空心菜切段。","大火炒牛肉至變色後推到一邊。","加空心菜、沙茶醬翻炒均勻即可。"],"tagClass":"tag-meat"},{"name":"牛肉炒洋蔥","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"牛肉片","unit":"g","amount":350},{"name":"洋蔥","unit":"g","amount":200},{"name":"醬油","unit":"cc","amount":25},{"name":"太白粉","unit":"g","amount":8},{"name":"糖","unit":"g","amount":5},{"name":"黑胡椒","unit":"g","amount":2},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["牛肉片醃10分鐘。","洋蔥切絲，熱鍋先炒至半透明。","加牛肉大火快炒至變色。","加醬油、糖、黑胡椒翻炒均勻。"],"tagClass":"tag-meat"},{"name":"清蒸鱸魚","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"鱸魚","unit":"g","amount":600},{"name":"薑絲","unit":"g","amount":20},{"name":"蔥絲","unit":"g","amount":20},{"name":"醬油","unit":"cc","amount":35},{"name":"沙拉油","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":3}],"steps":["魚身劃刀抹鹽，放入電鍋蒸12分鐘。","蒸熟後倒掉湯汁，鋪薑蔥絲。","燒熱油淋上，再淋醬油即可。"],"tagClass":"tag-meat"},{"name":"紅燒魚","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"吳郭魚","unit":"g","amount":600},{"name":"醬油","unit":"cc","amount":40},{"name":"米酒","unit":"cc","amount":25},{"name":"糖","unit":"g","amount":10},{"name":"薑片","unit":"g","amount":15},{"name":"蔥段","unit":"g","amount":20},{"name":"沙拉油","unit":"cc","amount":30},{"name":"水","unit":"cc","amount":100}],"steps":["魚身劃刀，下油鍋煎至兩面金黃。","加薑蔥爆香，加所有調料與水。","燒開後中火煮10分鐘至入味。","大火收汁即可。"],"tagClass":"tag-meat"},{"name":"照燒鮭魚","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"鮭魚","unit":"g","amount":500},{"name":"醬油","unit":"cc","amount":30},{"name":"味醂","unit":"cc","amount":25},{"name":"米酒","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":15}],"steps":["鮭魚用醬油、味醂、米酒、糖醃15分鐘。","魚皮朝下煎3分鐘至金黃。","翻面再煎2分鐘，淋醃料收汁。","盛盤即可。"],"tagClass":"tag-meat"},{"name":"味噌燒鯖魚","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"鯖魚","unit":"g","amount":500},{"name":"味噌","unit":"g","amount":30},{"name":"味醂","unit":"cc","amount":25},{"name":"醬油","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":30},{"name":"薑片","unit":"g","amount":10},{"name":"水","unit":"cc","amount":80}],"steps":["調好味噌醬汁。","平底鍋加醬汁與薑片煮滾。","放入鯖魚，蓋鍋中火煮10分鐘。","開大火收汁至濃稠。"],"tagClass":"tag-meat"},{"name":"糖醋魚","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"吳郭魚","unit":"g","amount":600},{"name":"白醋","unit":"cc","amount":35},{"name":"番茄醬","unit":"cc","amount":40},{"name":"糖","unit":"g","amount":30},{"name":"太白粉","unit":"g","amount":30},{"name":"蔥薑蒜末","unit":"g","amount":30},{"name":"沙拉油","unit":"cc","amount":300}],"steps":["魚身劃刀裹太白粉。","油鍋炸魚至金黃酥脆。","爆香蔥薑蒜，加醋、番茄醬、糖煮滾。","淋在魚身上即可。"],"tagClass":"tag-meat"},{"name":"蒜蒸鯛魚片","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"鯛魚片","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":20},{"name":"魚露","unit":"cc","amount":20},{"name":"糖","unit":"g","amount":8},{"name":"檸檬汁","unit":"cc","amount":15},{"name":"辣椒","unit":"根","amount":1},{"name":"香油","unit":"cc","amount":10}],"steps":["魚片放盤，蒸8分鐘至熟。","調好蒜蓉醬汁。","蒸熟後倒掉湯汁。","淋上醬汁，燒熱油淋上即可。"],"tagClass":"tag-meat"},{"name":"蒜蓉蒸蝦","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"草蝦","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":25},{"name":"醬油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":15},{"name":"沙拉油","unit":"cc","amount":20},{"name":"蔥花","unit":"g","amount":10}],"steps":["蝦剪鬚開背，排盤。","蒜末鋪在蝦上，電鍋外鍋半杯水蒸。","蒸熟後撒蔥花，淋醬油。","燒熱油淋上即可。"],"tagClass":"tag-meat"},{"name":"鹽酥蝦","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"白蝦","unit":"g","amount":450},{"name":"太白粉","unit":"g","amount":30},{"name":"蒜末","unit":"g","amount":15},{"name":"辣椒","unit":"根","amount":2},{"name":"鹽","unit":"g","amount":5},{"name":"九層塔","unit":"g","amount":12},{"name":"沙拉油","unit":"cc","amount":300}],"steps":["蝦洗淨吸乾，裹太白粉。","油鍋炸蝦至金黃酥脆撈起。","同鍋爆香蒜末、辣椒，加蝦翻炒。","加九層塔、鹽翻炒均勻即可。"],"tagClass":"tag-meat"},{"name":"蝦仁炒蛋","time":"約 10 分鐘","tag":"肉類","ingredients":[{"name":"蝦仁","unit":"g","amount":250},{"name":"雞蛋","unit":"顆","amount":4},{"name":"蔥花","unit":"g","amount":15},{"name":"鹽","unit":"g","amount":4},{"name":"米酒","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["蛋打散加鹽，蝦仁加米酒醃5分鐘。","熱鍋下油，蝦仁炒至變色起鍋。","同鍋倒蛋液炒至半熟。","放回蝦仁加蔥花翻炒均勻。"],"tagClass":"tag-meat"},{"name":"奶油蒜香蝦","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"草蝦","unit":"g","amount":450},{"name":"奶油","unit":"g","amount":35},{"name":"蒜末","unit":"g","amount":20},{"name":"白酒","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":3},{"name":"黑胡椒","unit":"g","amount":2},{"name":"巴西里","unit":"g","amount":5}],"steps":["蝦剝殼留尾備用。","平底鍋融化奶油，爆香蒜末。","放入蝦大火炒至變色，加白酒。","加鹽、黑胡椒，撒巴西里即可。"],"tagClass":"tag-meat"},{"name":"乾燒蝦仁","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"蝦仁","unit":"g","amount":400},{"name":"蔥薑蒜末","unit":"g","amount":25},{"name":"番茄醬","unit":"cc","amount":30},{"name":"辣豆瓣醬","unit":"g","amount":15},{"name":"糖","unit":"g","amount":8},{"name":"米酒","unit":"cc","amount":15},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["蝦仁洗淨吸乾。","熱鍋爆香蔥薑蒜末。","加番茄醬、豆瓣醬炒香。","放蝦仁加米酒、糖翻炒至入味。"],"tagClass":"tag-meat"},{"name":"蝦仁豆腐煮","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"蝦仁","unit":"g","amount":200},{"name":"嫩豆腐","unit":"g","amount":400},{"name":"薑絲","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"米酒","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切塊煎至微黃。","加蝦仁、薑絲翻炒。","加米酒、少許水燜煮3分鐘。","加鹽調味即可。"],"tagClass":"tag-meat"},{"name":"芥蘭炒牛肉","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"牛肉片","unit":"g","amount":300},{"name":"芥蘭","unit":"g","amount":300},{"name":"蒜末","unit":"g","amount":12},{"name":"醬油","unit":"cc","amount":20},{"name":"蠔油","unit":"cc","amount":15},{"name":"太白粉","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["牛肉片醃好備用。","芥蘭切段汆燙備用。","大火炒牛肉至變色。","加芥蘭、蒜末、蠔油翻炒均勻。"],"tagClass":"tag-meat"},{"name":"椒鹽魚塊","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"鱸魚或旗魚","unit":"g","amount":500},{"name":"太白粉","unit":"g","amount":40},{"name":"蒜末","unit":"g","amount":15},{"name":"辣椒","unit":"根","amount":2},{"name":"鹽","unit":"g","amount":5},{"name":"花椒鹽","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":300}],"steps":["魚切塊，裹太白粉。","油鍋炸至金黃酥脆撈起。","同鍋爆香蒜末與辣椒。","加魚塊、花椒鹽翻炒均勻。"],"tagClass":"tag-meat"},{"name":"炸雞腿排","time":"約 30 分鐘","tag":"肉類","ingredients":[{"name":"雞腿排","unit":"隻","amount":3},{"name":"醬油","unit":"cc","amount":30},{"name":"米酒","unit":"cc","amount":20},{"name":"蒜末","unit":"g","amount":15},{"name":"地瓜粉","unit":"g","amount":80},{"name":"沙拉油","unit":"cc","amount":400}],"steps":["雞腿排用醬油、米酒、蒜末醃30分鐘。","裹上地瓜粉，靜置5分鐘回潮。","油鍋160度炸8分鐘至熟。","撈起瀝油，升溫至180度再炸1分鐘酥脆。"],"tagClass":"tag-meat"},{"name":"客家封肉","time":"約 60 分鐘","tag":"肉類","ingredients":[{"name":"豬前腿肉","unit":"g","amount":600},{"name":"醬油","unit":"cc","amount":80},{"name":"米酒","unit":"cc","amount":50},{"name":"糖","unit":"g","amount":20},{"name":"蔥段","unit":"g","amount":30},{"name":"薑片","unit":"g","amount":20},{"name":"八角","unit":"顆","amount":2},{"name":"水","unit":"cc","amount":400}],"steps":["豬肉整塊汆燙後抹醬油。","熱油炸至表面上色，切大塊。","加所有調料與水，大火燒開。","轉小火燜50分鐘至軟爛入味。"],"tagClass":"tag-meat"},{"name":"蒜泥蒸豬肉片","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"豬里肌肉片","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":20},{"name":"醬油","unit":"cc","amount":25},{"name":"米酒","unit":"cc","amount":15},{"name":"香油","unit":"cc","amount":10},{"name":"辣油","unit":"cc","amount":8}],"steps":["肉片鋪盤，加米酒醃10分鐘。","電鍋外鍋半杯水蒸熟。","調好蒜泥醬汁。","淋在蒸熟的肉片上即可。"],"tagClass":"tag-meat"},{"name":"蔥燒鯽魚","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"鯽魚","unit":"尾","amount":2},{"name":"蔥段","unit":"g","amount":40},{"name":"薑片","unit":"g","amount":15},{"name":"醬油","unit":"cc","amount":35},{"name":"米酒","unit":"cc","amount":25},{"name":"糖","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":30}],"steps":["鯽魚洗淨，兩面煎至金黃。","加蔥段、薑片爆香。","加醬油、米酒、糖與少許水。","燒至收汁入味即可。"],"tagClass":"tag-meat"},{"name":"破布子蒸魚","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"吳郭魚","unit":"g","amount":500},{"name":"破布子","unit":"g","amount":30},{"name":"薑絲","unit":"g","amount":10},{"name":"蔥段","unit":"g","amount":15},{"name":"米酒","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":3}],"steps":["魚身劃刀抹鹽。","鋪上破布子、薑絲、蔥段。","電鍋外鍋1杯水蒸熟。","淋少許米酒即可。"],"tagClass":"tag-meat"},{"name":"豬肝炒韭黃","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"豬肝","unit":"g","amount":300},{"name":"韭黃","unit":"g","amount":150},{"name":"薑絲","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":15},{"name":"太白粉","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["豬肝切片用醬油、太白粉、米酒醃10分鐘。","熱鍋大火爆香薑絲。","加豬肝快炒至變色。","加韭黃翻炒均勻即可。"],"tagClass":"tag-meat"},{"name":"鳳梨蝦球","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"蝦仁","unit":"g","amount":350},{"name":"鳳梨","unit":"g","amount":150},{"name":"美乃滋","unit":"g","amount":50},{"name":"煉乳","unit":"g","amount":20},{"name":"太白粉","unit":"g","amount":25},{"name":"蛋白","unit":"個","amount":1},{"name":"沙拉油","unit":"cc","amount":300}],"steps":["蝦仁用蛋白、太白粉醃5分鐘。","油鍋炸蝦球至熟酥撈起。","美乃滋加煉乳調勻。","蝦球與鳳梨加醬汁拌勻盛盤。"],"tagClass":"tag-meat"},{"name":"薑燒豬肉","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"豬里肌肉片","unit":"g","amount":450},{"name":"洋蔥","unit":"g","amount":150},{"name":"薑泥","unit":"g","amount":20},{"name":"醬油","unit":"cc","amount":30},{"name":"味醂","unit":"cc","amount":25},{"name":"米酒","unit":"cc","amount":15},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["肉片加薑泥、醬油、味醂醃10分鐘。","洋蔥切絲，熱鍋炒至半透明。","放入肉片大火翻炒至變色。","倒入醃料收汁即可。"],"tagClass":"tag-meat"},{"name":"鹽麴烤雞腿","time":"約 35 分鐘","tag":"肉類","ingredients":[{"name":"雞腿","unit":"隻","amount":3},{"name":"鹽麴","unit":"g","amount":40},{"name":"蒜末","unit":"g","amount":10},{"name":"黑胡椒","unit":"g","amount":3},{"name":"橄欖油","unit":"cc","amount":15}],"steps":["雞腿抹上鹽麴、蒜末、黑胡椒，醃30分鐘以上。","烤箱預熱200度。","雞皮朝上放烤盤烤25分鐘至焦香。","取出靜置5分鐘再切。"],"tagClass":"tag-meat"},{"name":"蒜片炒牛肉","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"牛肉片","unit":"g","amount":400},{"name":"蒜片","unit":"g","amount":25},{"name":"辣椒","unit":"根","amount":1},{"name":"醬油","unit":"cc","amount":20},{"name":"太白粉","unit":"g","amount":8},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["牛肉片加醬油、太白粉醃10分鐘。","熱鍋爆香蒜片至金黃，加辣椒。","大火加牛肉快炒至變色。","翻炒均勻即可。"],"tagClass":"tag-meat"},{"name":"梅汁燒魚","time":"約 20 分鐘","tag":"肉類","ingredients":[{"name":"鯖魚或鱈魚","unit":"g","amount":500},{"name":"梅子","unit":"g","amount":30},{"name":"醬油","unit":"cc","amount":25},{"name":"味醂","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":20},{"name":"薑片","unit":"g","amount":10},{"name":"水","unit":"cc","amount":80}],"steps":["魚切段備用。","鍋中加調料與梅子煮滾。","放入魚塊，蓋鍋中火煮10分鐘。","開大火收汁即可。"],"tagClass":"tag-meat"},{"name":"椒鹽鮮蝦","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"白蝦","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":15},{"name":"辣椒","unit":"根","amount":2},{"name":"花椒鹽","unit":"g","amount":6},{"name":"蔥花","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["蝦洗淨吸乾水分。","熱鍋下油，蝦大火翻炒至殼酥脆。","加蒜末、辣椒爆香。","加蔥花、花椒鹽翻炒均勻即可。"],"tagClass":"tag-meat"},{"name":"客家炒豬肝","time":"約 15 分鐘","tag":"肉類","ingredients":[{"name":"豬肝","unit":"g","amount":300},{"name":"薑絲","unit":"g","amount":20},{"name":"韭菜","unit":"g","amount":100},{"name":"醬油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":20},{"name":"太白粉","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["豬肝切片，加醬油、太白粉、米酒醃10分鐘。","熱鍋爆香薑絲至微焦。","大火加豬肝快炒至變色。","加韭菜翻炒均勻即可。"],"tagClass":"tag-meat"},{"name":"蔥燒鯉魚","time":"約 25 分鐘","tag":"肉類","ingredients":[{"name":"鯉魚","unit":"g","amount":600},{"name":"蔥段","unit":"g","amount":50},{"name":"薑片","unit":"g","amount":15},{"name":"醬油","unit":"cc","amount":40},{"name":"米酒","unit":"cc","amount":25},{"name":"糖","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":30}],"steps":["鯉魚兩面劃刀，下油鍋煎至金黃。","加蔥段、薑片爆香。","加醬油、米酒、糖與水。","燒10分鐘至入味收汁。"],"tagClass":"tag-meat"}],"veg":[{"name":"蒜炒菠菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"菠菜","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":12},{"name":"沙拉油","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":4}],"steps":["菠菜洗淨切段。","熱鍋爆香蒜末。","大火翻炒2分鐘。","加鹽調味起鍋。"],"tagClass":"tag-veg"},{"name":"手撕高麗菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"高麗菜","unit":"g","amount":500},{"name":"蒜末","unit":"g","amount":12},{"name":"辣椒","unit":"根","amount":1},{"name":"鹽","unit":"g","amount":4},{"name":"醬油","unit":"cc","amount":12},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["高麗菜手撕大片洗淨。","熱鍋爆香蒜末與辣椒。","大火翻炒至軟化。","加鹽、醬油調味起鍋。"],"tagClass":"tag-veg"},{"name":"清炒空心菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"空心菜","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["空心菜摘洗切段。","熱鍋爆香蒜末。","大火翻炒至葉片軟化。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒青江菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"青江菜","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["青江菜洗淨對半切。","熱鍋爆香蒜末。","大火翻炒至軟。","加鹽調味起鍋。"],"tagClass":"tag-veg"},{"name":"紅燒茄子","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"茄子","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":12},{"name":"醬油","unit":"cc","amount":25},{"name":"糖","unit":"g","amount":6},{"name":"沙拉油","unit":"cc","amount":30},{"name":"水","unit":"cc","amount":60}],"steps":["茄子切滾刀塊，泡鹽水備用。","熱鍋多油，茄子煎軟後撈起。","爆香蒜末，放回茄子。","加醬油、糖、水燒至入味。"],"tagClass":"tag-veg"},{"name":"清炒花椰菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"花椰菜","unit":"g","amount":500},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["花椰菜切小朵鹽水泡5分鐘。","滾水汆燙1分鐘撈起。","熱鍋爆香蒜末。","加花椰菜翻炒，加鹽調味。"],"tagClass":"tag-veg"},{"name":"炒四季豆","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"四季豆","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":12},{"name":"豬絞肉","unit":"g","amount":100},{"name":"醬油","unit":"cc","amount":12},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["四季豆切段。","熱鍋炒絞肉至熟推到一旁。","加四季豆大火翻炒至皮起皺。","加蒜末、醬油、鹽炒勻。"],"tagClass":"tag-veg"},{"name":"番茄炒高麗菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"高麗菜","unit":"g","amount":350},{"name":"番茄","unit":"g","amount":200},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"糖","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["番茄切塊，高麗菜切片。","熱鍋爆香蒜末，加番茄炒出湯汁。","放高麗菜翻炒。","加鹽、糖調味即可。"],"tagClass":"tag-veg"},{"name":"芹菜炒百頁豆腐","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"百頁豆腐","unit":"g","amount":250},{"name":"芹菜","unit":"g","amount":180},{"name":"紅蘿蔔","unit":"g","amount":80},{"name":"醬油","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["百頁豆腐切條，芹菜、紅蘿蔔切條。","熱鍋下油，百頁豆腐煎至微黃。","加芹菜、紅蘿蔔翻炒。","加醬油、鹽調味即可。"],"tagClass":"tag-veg"},{"name":"清炒大黃瓜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"大黃瓜","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20},{"name":"醬油","unit":"cc","amount":10}],"steps":["大黃瓜去皮去籽切片。","熱鍋爆香蒜末。","加大黃瓜翻炒。","加鹽、醬油調味即可。"],"tagClass":"tag-veg"},{"name":"炒牛蒡絲","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"牛蒡","unit":"g","amount":250},{"name":"紅蘿蔔","unit":"g","amount":80},{"name":"醬油","unit":"cc","amount":20},{"name":"味醂","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":5},{"name":"芝麻","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["牛蒡、紅蘿蔔切絲，泡水備用。","熱鍋炒牛蒡絲5分鐘。","加紅蘿蔔絲翻炒。","加醬油、味醂、糖炒至收汁，撒芝麻。"],"tagClass":"tag-veg"},{"name":"涼拌小黃瓜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"小黃瓜","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":20},{"name":"白醋","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":8},{"name":"香油","unit":"cc","amount":10},{"name":"辣椒","unit":"根","amount":1}],"steps":["小黃瓜拍裂切段，加鹽醃10分鐘後擠乾。","調好醬汁備用。","淋在小黃瓜上拌勻。","冷藏20分鐘更入味。"],"tagClass":"tag-veg"},{"name":"炒絲瓜蛤蜊","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"絲瓜","unit":"g","amount":450},{"name":"蛤蜊","unit":"g","amount":150},{"name":"薑絲","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":10}],"steps":["絲瓜去皮切塊，蛤蜊吐沙。","熱鍋爆香薑絲，加絲瓜翻炒。","加蛤蜊、米酒，蓋鍋至蛤蜊開口。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒地瓜葉","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"地瓜葉","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["地瓜葉摘洗備用。","熱鍋爆香蒜末。","大火加地瓜葉翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"滷海帶","time":"約 30 分鐘","tag":"蔬菜","ingredients":[{"name":"海帶","unit":"g","amount":350},{"name":"醬油","unit":"cc","amount":40},{"name":"米酒","unit":"cc","amount":20},{"name":"糖","unit":"g","amount":10},{"name":"八角","unit":"顆","amount":1},{"name":"水","unit":"cc","amount":350}],"steps":["海帶洗淨切段。","鍋中加所有調料與水煮滾。","放入海帶，中火滷20分鐘。","熄火浸泡10分鐘更入味。"],"tagClass":"tag-veg"},{"name":"炒韭黃","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"韭黃","unit":"g","amount":250},{"name":"豆芽菜","unit":"g","amount":150},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["韭黃切段，豆芽洗淨。","熱鍋下油大火翻炒豆芽。","加韭黃一起翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"蒜炒青花菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"青花菜","unit":"g","amount":450},{"name":"蒜片","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["青花菜切小朵汆燙1分鐘。","熱鍋爆香蒜片至金黃。","加青花菜翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"醋溜白菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"大白菜","unit":"g","amount":450},{"name":"白醋","unit":"cc","amount":25},{"name":"糖","unit":"g","amount":8},{"name":"鹽","unit":"g","amount":3},{"name":"乾辣椒","unit":"根","amount":2},{"name":"花椒","unit":"g","amount":2},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["白菜切片備用。","熱鍋爆香花椒與辣椒。","加白菜大火翻炒。","加白醋、糖、鹽快速翻炒均勻。"],"tagClass":"tag-veg"},{"name":"炒豆芽菜","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"豆芽菜","unit":"g","amount":350},{"name":"韭菜","unit":"g","amount":60},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆芽洗淨，韭菜切段。","熱鍋爆香蒜末。","大火加豆芽快炒。","加韭菜、鹽翻炒均勻即可。"],"tagClass":"tag-veg"},{"name":"焦糖洋蔥","time":"約 20 分鐘","tag":"蔬菜","ingredients":[{"name":"洋蔥","unit":"g","amount":500},{"name":"醬油","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":8},{"name":"黑胡椒","unit":"g","amount":2},{"name":"奶油","unit":"g","amount":15},{"name":"沙拉油","unit":"cc","amount":15}],"steps":["洋蔥切絲備用。","奶油與油入鍋，中小火慢炒洋蔥。","炒約15分鐘至焦糖色。","加醬油、糖、黑胡椒調味即可。"],"tagClass":"tag-veg"},{"name":"炒杏鮑菇","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"杏鮑菇","unit":"g","amount":350},{"name":"蒜末","unit":"g","amount":12},{"name":"醬油","unit":"cc","amount":15},{"name":"蠔油","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["杏鮑菇切片。","熱鍋下油，杏鮑菇煎至金黃。","加蒜末爆香。","加醬油、蠔油翻炒均勻即可。"],"tagClass":"tag-veg"},{"name":"清炒南瓜","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"南瓜","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":5},{"name":"水","unit":"cc","amount":60},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["南瓜去皮切塊。","熱鍋爆香蒜末。","加南瓜翻炒，加水悶5分鐘。","加醬油、糖翻炒至熟。"],"tagClass":"tag-veg"},{"name":"塔香炒茄子","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"茄子","unit":"g","amount":400},{"name":"九層塔","unit":"g","amount":15},{"name":"蒜末","unit":"g","amount":12},{"name":"辣椒","unit":"根","amount":1},{"name":"醬油","unit":"cc","amount":20},{"name":"糖","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":30}],"steps":["茄子切條，油煎至軟化。","爆香蒜末與辣椒。","加茄子翻炒，加醬油、糖調味。","起鍋前加九層塔翻炒。"],"tagClass":"tag-veg"},{"name":"炒長豆","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"長豆","unit":"g","amount":350},{"name":"蒜末","unit":"g","amount":12},{"name":"辣椒","unit":"根","amount":1},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["長豆切段備用。","熱鍋爆香蒜末與辣椒。","加長豆大火翻炒。","加鹽調味至熟即可。"],"tagClass":"tag-veg"},{"name":"炒苦瓜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"苦瓜","unit":"g","amount":350},{"name":"蛋","unit":"顆","amount":2},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["苦瓜去籽切片，蛋打散備用。","熱鍋先炒蛋至半熟起鍋。","同鍋爆香蒜末，加苦瓜翻炒。","放回蛋加鹽翻炒均勻。"],"tagClass":"tag-veg"},{"name":"炒山蘇","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"山蘇","unit":"g","amount":350},{"name":"小魚乾","unit":"g","amount":20},{"name":"蒜末","unit":"g","amount":10},{"name":"辣椒","unit":"根","amount":1},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["山蘇洗淨切段，小魚乾備用。","熱鍋爆香小魚乾至酥脆。","加蒜末、辣椒爆香。","加山蘇大火翻炒，加鹽調味。"],"tagClass":"tag-veg"},{"name":"炒皇帝豆","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"皇帝豆","unit":"g","amount":350},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"醬油","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["皇帝豆汆燙備用。","熱鍋爆香蒜末。","加皇帝豆翻炒。","加鹽、醬油調味即可。"],"tagClass":"tag-veg"},{"name":"麻婆豆腐","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"嫩豆腐","unit":"g","amount":500},{"name":"豬絞肉","unit":"g","amount":120},{"name":"辣豆瓣醬","unit":"g","amount":25},{"name":"花椒粉","unit":"g","amount":3},{"name":"醬油","unit":"cc","amount":15},{"name":"太白粉水","unit":"cc","amount":25},{"name":"蔥花","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切丁汆燙備用。","熱鍋炒絞肉，加豆瓣醬炒香。","加水煮滾，放豆腐輕輕推勻。","勾芡，撒花椒粉與蔥花。"],"tagClass":"tag-veg"},{"name":"炒蓮藕片","time":"約 12 分鐘","tag":"蔬菜","ingredients":[{"name":"蓮藕","unit":"g","amount":350},{"name":"醬油","unit":"cc","amount":15},{"name":"白醋","unit":"cc","amount":10},{"name":"糖","unit":"g","amount":5},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["蓮藕去皮切薄片，泡水備用。","熱鍋下油，蓮藕炒3分鐘。","加醬油、白醋、糖翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒小白菜","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"小白菜","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["小白菜洗淨切段。","熱鍋爆香蒜末。","大火加小白菜翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒玉米筍","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"玉米筍","unit":"g","amount":250},{"name":"紅黃椒","unit":"g","amount":100},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["玉米筍對半切，彩椒切條。","熱鍋爆香蒜末。","加玉米筍翻炒，加彩椒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"三色豆炒蛋","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"雞蛋","unit":"顆","amount":3},{"name":"玉米粒","unit":"g","amount":100},{"name":"青豆","unit":"g","amount":80},{"name":"紅蘿蔔丁","unit":"g","amount":60},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["蛋打散加鹽。","三色豆汆燙備用。","熱鍋炒蛋至半熟。","加三色豆翻炒均勻即可。"],"tagClass":"tag-veg"},{"name":"炒金針花","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"新鮮金針花","unit":"g","amount":250},{"name":"豬絞肉","unit":"g","amount":80},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["金針花洗淨備用。","熱鍋炒絞肉至熟。","加蒜末爆香，加金針花翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒山藥","time":"約 12 分鐘","tag":"蔬菜","ingredients":[{"name":"山藥","unit":"g","amount":350},{"name":"黑木耳","unit":"g","amount":80},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"香油","unit":"cc","amount":8},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["山藥去皮切片，木耳切絲。","熱鍋爆香蒜末。","加山藥翻炒，加木耳。","加鹽調味，起鍋前淋香油。"],"tagClass":"tag-veg"},{"name":"炒紅鳳菜","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"紅鳳菜","unit":"g","amount":350},{"name":"蒜末","unit":"g","amount":12},{"name":"麻油","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":3}],"steps":["紅鳳菜摘洗備用。","麻油爆香蒜末。","大火加紅鳳菜翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒龍鬚菜","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"龍鬚菜","unit":"g","amount":350},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["龍鬚菜摘洗切段。","熱鍋爆香蒜末。","大火翻炒至軟。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"涼拌豆腐","time":"約 5 分鐘","tag":"蔬菜","ingredients":[{"name":"嫩豆腐","unit":"g","amount":450},{"name":"蔥花","unit":"g","amount":15},{"name":"醬油膏","unit":"cc","amount":25},{"name":"香油","unit":"cc","amount":8},{"name":"柴魚片","unit":"g","amount":6}],"steps":["豆腐切塊排盤。","撒蔥花，淋醬油膏與香油。","擺柴魚片即可。"],"tagClass":"tag-veg"},{"name":"炒雪裡紅","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"雪裡紅","unit":"g","amount":200},{"name":"豬絞肉","unit":"g","amount":100},{"name":"辣椒","unit":"根","amount":1},{"name":"醬油","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["雪裡紅洗淨切碎，擠乾水分。","熱鍋炒絞肉至熟。","加辣椒、雪裡紅翻炒。","加醬油調味即可。"],"tagClass":"tag-veg"},{"name":"炒茭白筍","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"茭白筍","unit":"g","amount":350},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["茭白筍切片備用。","熱鍋爆香蒜末。","加茭白筍翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒羊肉片佐蒜苗","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"羊肉片","unit":"g","amount":250},{"name":"蒜苗","unit":"g","amount":200},{"name":"薑片","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":15},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["蒜苗切斜段。","熱鍋爆香薑片，加羊肉片大火翻炒。","加蒜苗白段翻炒，加醬油、米酒。","加蒜苗綠段翻炒均勻即可。"],"tagClass":"tag-veg"},{"name":"炒秋葵","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"秋葵","unit":"g","amount":300},{"name":"蒜末","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":12},{"name":"鹽","unit":"g","amount":2},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["秋葵洗淨切段備用。","熱鍋爆香蒜末。","加秋葵翻炒2分鐘。","加醬油、鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒芥蘭","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"芥蘭","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":12},{"name":"蠔油","unit":"cc","amount":20},{"name":"糖","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["芥蘭洗淨切段汆燙。","熱鍋爆香蒜末。","加芥蘭翻炒。","加蠔油、糖調味即可。"],"tagClass":"tag-veg"},{"name":"炒豆苗","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"豆苗","unit":"g","amount":350},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆苗洗淨備用。","熱鍋爆香蒜末。","大火加豆苗快炒。","加鹽調味起鍋。"],"tagClass":"tag-veg"},{"name":"炒韭菜花","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"韭菜花","unit":"g","amount":300},{"name":"豆乾","unit":"g","amount":100},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["韭菜花切段，豆乾切條。","熱鍋爆香蒜末。","加豆乾翻炒後加韭菜花。","加鹽調味翻炒均勻即可。"],"tagClass":"tag-veg"},{"name":"薑絲炒木耳","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"黑木耳","unit":"g","amount":300},{"name":"薑絲","unit":"g","amount":15},{"name":"醬油","unit":"cc","amount":15},{"name":"烏醋","unit":"cc","amount":10},{"name":"糖","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["黑木耳洗淨切條備用。","熱鍋爆香薑絲。","加木耳翻炒。","加醬油、烏醋、糖調味即可。"],"tagClass":"tag-veg"},{"name":"炒A菜","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"A菜","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["A菜摘洗備用。","熱鍋爆香蒜末。","大火翻炒至軟。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒油菜","time":"約 8 分鐘","tag":"蔬菜","ingredients":[{"name":"油菜","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["油菜洗淨切段。","熱鍋爆香蒜末。","大火翻炒至軟。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"干煸四季豆","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"四季豆","unit":"g","amount":400},{"name":"豬絞肉","unit":"g","amount":80},{"name":"蒜末","unit":"g","amount":12},{"name":"豆豉","unit":"g","amount":15},{"name":"辣椒","unit":"根","amount":1},{"name":"醬油","unit":"cc","amount":15},{"name":"沙拉油","unit":"cc","amount":30}],"steps":["四季豆切段，下較多油煸炒至皮皺。","撈起備用，留少許油。","爆香蒜末、豆豉、辣椒，加絞肉炒熟。","放回四季豆加醬油翻炒均勻。"],"tagClass":"tag-veg"},{"name":"炒雙色花椰","time":"約 12 分鐘","tag":"蔬菜","ingredients":[{"name":"綠花椰菜","unit":"g","amount":250},{"name":"白花椰菜","unit":"g","amount":250},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["兩種花椰菜切小朵，分別汆燙備用。","熱鍋爆香蒜末。","加兩種花椰菜翻炒。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"薑絲炒蛤蜊","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"蛤蜊","unit":"g","amount":400},{"name":"薑絲","unit":"g","amount":20},{"name":"九層塔","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":20},{"name":"醬油","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["蛤蜊吐沙備用。","熱鍋爆香薑絲。","加蛤蜊、米酒，蓋鍋至開口。","加醬油、九層塔翻炒均勻即可。"],"tagClass":"tag-veg"},{"name":"客家炒野菜","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"水蓮","unit":"g","amount":300},{"name":"紅蘿蔔絲","unit":"g","amount":50},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["水蓮切段，紅蘿蔔切絲。","熱鍋爆香蒜末。","加紅蘿蔔絲翻炒，加水蓮。","加鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒栗子南瓜","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"栗子南瓜","unit":"g","amount":450},{"name":"蒜末","unit":"g","amount":10},{"name":"奶油","unit":"g","amount":15},{"name":"鹽","unit":"g","amount":3},{"name":"黑胡椒","unit":"g","amount":2},{"name":"沙拉油","unit":"cc","amount":15}],"steps":["南瓜去皮切塊。","鍋中奶油與沙拉油融合，爆香蒜末。","加南瓜，加水蓋鍋悶5分鐘。","加鹽、黑胡椒調味即可。"],"tagClass":"tag-veg"},{"name":"麻辣豆腐","time":"約 15 分鐘","tag":"蔬菜","ingredients":[{"name":"嫩豆腐","unit":"g","amount":500},{"name":"辣豆瓣醬","unit":"g","amount":25},{"name":"花椒粉","unit":"g","amount":4},{"name":"蒜末","unit":"g","amount":12},{"name":"薑末","unit":"g","amount":8},{"name":"太白粉水","unit":"cc","amount":25},{"name":"水","unit":"cc","amount":150},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切塊備用。","熱鍋爆香蒜末、薑末與豆瓣醬。","加水煮滾，放入豆腐輕輕推勻。","勾芡，撒花椒粉即可。"],"tagClass":"tag-veg"},{"name":"炒箭筍","time":"約 10 分鐘","tag":"蔬菜","ingredients":[{"name":"箭筍","unit":"g","amount":350},{"name":"豬肉絲","unit":"g","amount":100},{"name":"蒜末","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["箭筍切段汆燙備用。","熱鍋炒豬肉絲至熟。","加蒜末爆香，加箭筍翻炒。","加醬油、鹽調味即可。"],"tagClass":"tag-veg"},{"name":"炒桂竹筍","time":"約 12 分鐘","tag":"蔬菜","ingredients":[{"name":"桂竹筍","unit":"g","amount":350},{"name":"豬五花肉片","unit":"g","amount":100},{"name":"辣椒","unit":"根","amount":1},{"name":"醬油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["桂竹筍切段汆燙去苦味。","熱鍋炒五花肉至出油。","加辣椒、桂竹筍翻炒。","加醬油、米酒炒均勻即可。"],"tagClass":"tag-veg"}],"egg":[{"name":"番茄炒蛋","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":4},{"name":"番茄","unit":"g","amount":350},{"name":"糖","unit":"g","amount":6},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["蛋打散加鹽，番茄切塊。","熱鍋炒蛋至半熟盛起。","同鍋炒番茄出湯汁。","加糖、鹽，放回蛋翻炒均勻。"],"tagClass":"tag-egg"},{"name":"蒸蛋","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":4},{"name":"高湯或水","unit":"cc","amount":400},{"name":"醬油","unit":"cc","amount":15},{"name":"香油","unit":"cc","amount":5},{"name":"鹽","unit":"g","amount":3}],"steps":["蛋打散加高湯（1:1.5）與鹽過篩。","蓋保鮮膜，電鍋外鍋半杯水蒸。","蒸熟後淋醬油與香油即可。"],"tagClass":"tag-egg"},{"name":"豆腐燒肉末","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"豬絞肉","unit":"g","amount":150},{"name":"醬油","unit":"cc","amount":25},{"name":"蔥花","unit":"g","amount":12},{"name":"糖","unit":"g","amount":6},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切塊吸乾水分煎至金黃。","另起鍋炒絞肉加醬油、糖。","放回豆腐加水燒入味。","撒蔥花起鍋。"],"tagClass":"tag-egg"},{"name":"紅燒豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"醬油","unit":"cc","amount":30},{"name":"糖","unit":"g","amount":10},{"name":"蔥段","unit":"g","amount":20},{"name":"薑末","unit":"g","amount":6},{"name":"沙拉油","unit":"cc","amount":25},{"name":"水","unit":"cc","amount":100}],"steps":["豆腐切厚片煎至兩面金黃。","爆香薑末與蔥段。","加醬油、糖、水翻炒。","燒至湯汁略收即可。"],"tagClass":"tag-egg"},{"name":"蚵仔蒸蛋","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"新鮮蚵仔","unit":"g","amount":120},{"name":"雞蛋","unit":"顆","amount":4},{"name":"高湯","unit":"cc","amount":380},{"name":"醬油","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":2}],"steps":["蛋加高湯、鹽打散過篩。","先蒸蛋液至半凝固5分鐘。","放入蚵仔繼續蒸5分鐘至熟。","淋醬油即可。"],"tagClass":"tag-egg"},{"name":"荷包蛋燒肉片","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":4},{"name":"豬肉薄片","unit":"g","amount":200},{"name":"醬油","unit":"cc","amount":25},{"name":"糖","unit":"g","amount":6},{"name":"薑末","unit":"g","amount":6},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["煎好荷包蛋備用。","同鍋炒豬肉片加薑末炒香。","加醬油、糖與水，放回荷包蛋。","小火燒3分鐘至入味。"],"tagClass":"tag-egg"},{"name":"蝦仁炒豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"嫩豆腐","unit":"g","amount":450},{"name":"蝦仁","unit":"g","amount":150},{"name":"蛋白","unit":"個","amount":2},{"name":"鹽","unit":"g","amount":4},{"name":"蔥花","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["蝦仁用蛋白、鹽醃5分鐘。","豆腐切塊煎至微黃。","加蝦仁翻炒至熟。","加鹽調味，撒蔥花。"],"tagClass":"tag-egg"},{"name":"蔥花蛋","time":"約 8 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":5},{"name":"蔥花","unit":"g","amount":35},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":35}],"steps":["蛋打散加鹽與蔥花拌勻。","熱鍋下較多油至七成熱。","倒入蛋液，邊緣起泡時捲起。","煎至金黃即可。"],"tagClass":"tag-egg"},{"name":"菜脯蛋","time":"約 10 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":5},{"name":"蘿蔔乾（菜脯）","unit":"g","amount":60},{"name":"蔥花","unit":"g","amount":15},{"name":"沙拉油","unit":"cc","amount":35}],"steps":["菜脯沖洗切碎，蛋打散加蔥花。","熱鍋下油，先炒香菜脯。","倒入蛋液翻炒至熟。","煎至兩面金黃即可。"],"tagClass":"tag-egg"},{"name":"皮蛋豆腐","time":"約 5 分鐘","tag":"蛋類","ingredients":[{"name":"嫩豆腐","unit":"g","amount":450},{"name":"皮蛋","unit":"顆","amount":2},{"name":"醬油膏","unit":"cc","amount":25},{"name":"香油","unit":"cc","amount":8},{"name":"蔥花","unit":"g","amount":10},{"name":"柴魚片","unit":"g","amount":5}],"steps":["豆腐切塊排盤，皮蛋切塊擺上。","淋醬油膏與香油。","撒蔥花與柴魚片即可。"],"tagClass":"tag-egg"},{"name":"韓式煎豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"醬油","unit":"cc","amount":20},{"name":"韓式辣椒粉","unit":"g","amount":8},{"name":"蒜末","unit":"g","amount":10},{"name":"蔥花","unit":"g","amount":15},{"name":"芝麻","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["豆腐切片煎至兩面金黃。","調好韓式醬汁。","豆腐排盤，淋上醬汁。","撒蔥花與芝麻即可。"],"tagClass":"tag-egg"},{"name":"花椰菜炒蛋","time":"約 10 分鐘","tag":"蛋類","ingredients":[{"name":"花椰菜","unit":"g","amount":350},{"name":"雞蛋","unit":"顆","amount":3},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["花椰菜汆燙備用。","蛋打散加鹽，熱鍋炒至半熟起鍋。","同鍋爆香蒜末加花椰菜翻炒。","放回蛋翻炒均勻即可。"],"tagClass":"tag-egg"},{"name":"日式玉子燒","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":5},{"name":"高湯","unit":"cc","amount":75},{"name":"味醂","unit":"cc","amount":15},{"name":"醬油","unit":"cc","amount":5},{"name":"糖","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":15}],"steps":["蛋打散加高湯、味醂、醬油、糖拌勻。","玉子燒鍋抹油，倒入1/3蛋液。","半熟時捲起，再倒入蛋液繼續捲。","重複3次，整形後切片盛盤。"],"tagClass":"tag-egg"},{"name":"炒豆乾","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"五香豆乾","unit":"g","amount":350},{"name":"青椒","unit":"g","amount":80},{"name":"辣椒","unit":"根","amount":1},{"name":"蒜末","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":15},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆乾切條，青椒切絲。","熱鍋爆香蒜末與辣椒。","加豆乾翻炒至微焦。","加青椒與醬油炒勻即可。"],"tagClass":"tag-egg"},{"name":"麻婆豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"嫩豆腐","unit":"g","amount":500},{"name":"豬絞肉","unit":"g","amount":120},{"name":"辣豆瓣醬","unit":"g","amount":25},{"name":"花椒粉","unit":"g","amount":3},{"name":"醬油","unit":"cc","amount":15},{"name":"太白粉水","unit":"cc","amount":25},{"name":"蔥花","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切丁汆燙備用。","熱鍋炒絞肉，加豆瓣醬炒香。","加水煮滾，放豆腐輕輕推勻。","勾芡，撒花椒粉與蔥花。"],"tagClass":"tag-egg"},{"name":"溏心蛋","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":5},{"name":"醬油","unit":"cc","amount":80},{"name":"味醂","unit":"cc","amount":60},{"name":"水","unit":"cc","amount":200},{"name":"糖","unit":"g","amount":10}],"steps":["雞蛋煮6分鐘半熟，剝殼備用。","調好滷汁煮滾放涼。","將蛋放入滷汁浸泡至少2小時。","取出對半切盛盤。"],"tagClass":"tag-egg"},{"name":"豆腐鑲肉","time":"約 25 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"豬絞肉","unit":"g","amount":200},{"name":"醬油","unit":"cc","amount":20},{"name":"太白粉","unit":"g","amount":10},{"name":"蔥花","unit":"g","amount":15},{"name":"薑末","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["豆腐切厚片，中間挖洞。","絞肉加醬油、太白粉、薑末拌勻，填入豆腐。","熱鍋下油，豆腐肉面朝下煎至金黃。","翻面加水蓋鍋燜5分鐘，撒蔥花。"],"tagClass":"tag-egg"},{"name":"滷豆腐","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"醬油","unit":"cc","amount":50},{"name":"糖","unit":"g","amount":10},{"name":"八角","unit":"顆","amount":1},{"name":"水","unit":"cc","amount":300},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切塊，油煎至兩面金黃。","加入所有調料與水煮滾。","中火滷15分鐘至入味。","盛盤即可。"],"tagClass":"tag-egg"},{"name":"番茄豆腐湯（配菜版）","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"嫩豆腐","unit":"g","amount":400},{"name":"番茄","unit":"g","amount":250},{"name":"雞蛋","unit":"顆","amount":2},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["番茄切塊，豆腐切塊。","熱鍋爆香蒜末，加番茄炒出湯汁。","加豆腐翻炒，加少許水。","打入蛋液攪散，加鹽調味。"],"tagClass":"tag-egg"},{"name":"苦瓜炒蛋","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"苦瓜","unit":"g","amount":300},{"name":"雞蛋","unit":"顆","amount":3},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":3},{"name":"糖","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["苦瓜去籽切片，蛋打散備用。","熱鍋先炒蛋至半熟起鍋。","同鍋爆香蒜末，加苦瓜翻炒。","放回蛋加鹽、糖翻炒均勻。"],"tagClass":"tag-egg"},{"name":"豆腐泡菜鍋","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":400},{"name":"韓式泡菜","unit":"g","amount":150},{"name":"豬五花肉片","unit":"g","amount":150},{"name":"韓式辣醬","unit":"g","amount":20},{"name":"醬油","unit":"cc","amount":10},{"name":"水","unit":"cc","amount":400}],"steps":["豆腐切塊，泡菜切段。","熱鍋炒五花肉至出油。","加泡菜、韓式辣醬翻炒。","加水、豆腐煮10分鐘入味。"],"tagClass":"tag-egg"},{"name":"韭菜炒豆腐乾","time":"約 10 分鐘","tag":"蛋類","ingredients":[{"name":"韭菜","unit":"g","amount":200},{"name":"豆腐乾","unit":"g","amount":200},{"name":"辣椒","unit":"根","amount":1},{"name":"鹽","unit":"g","amount":3},{"name":"醬油","unit":"cc","amount":12},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["韭菜切段，豆腐乾切條。","熱鍋爆香辣椒。","加豆腐乾翻炒至微焦。","加韭菜、醬油、鹽翻炒均勻。"],"tagClass":"tag-egg"},{"name":"蘿蔔糕炒蛋","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"蘿蔔糕","unit":"g","amount":400},{"name":"雞蛋","unit":"顆","amount":3},{"name":"韭菜","unit":"g","amount":50},{"name":"醬油膏","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":2},{"name":"沙拉油","unit":"cc","amount":30}],"steps":["蘿蔔糕切塊，蛋打散備用。","熱鍋下油，蘿蔔糕煎至兩面金黃。","倒入蛋液翻炒。","加韭菜、醬油膏翻炒均勻即可。"],"tagClass":"tag-egg"},{"name":"油豆腐炒肉片","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"油豆腐","unit":"g","amount":350},{"name":"豬肉片","unit":"g","amount":150},{"name":"蒜苗","unit":"g","amount":100},{"name":"醬油","unit":"cc","amount":20},{"name":"米酒","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["油豆腐切塊，蒜苗切斜段。","熱鍋炒肉片至熟。","加油豆腐翻炒。","加蒜苗、醬油、米酒炒均勻。"],"tagClass":"tag-egg"},{"name":"蛋包豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":4},{"name":"嫩豆腐","unit":"g","amount":400},{"name":"醬油","unit":"cc","amount":20},{"name":"糖","unit":"g","amount":5},{"name":"香油","unit":"cc","amount":5},{"name":"蔥花","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":30}],"steps":["豆腐壓碎，加蛋、醬油、糖拌勻。","熱鍋下油，倒入豆腐蛋液。","小火煎至底部金黃，翻面再煎。","起鍋撒蔥花，淋香油。"],"tagClass":"tag-egg"},{"name":"虎皮蛋","time":"約 25 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":6},{"name":"醬油","unit":"cc","amount":50},{"name":"糖","unit":"g","amount":12},{"name":"八角","unit":"顆","amount":1},{"name":"水","unit":"cc","amount":300},{"name":"沙拉油","unit":"cc","amount":300}],"steps":["雞蛋煮熟剝殼備用。","油鍋炸蛋至表面虎皮紋。","另起鍋加調料煮滾，放入蛋。","中火滷15分鐘至入味。"],"tagClass":"tag-egg"},{"name":"豆腐炒蝦皮","time":"約 10 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":400},{"name":"蝦皮","unit":"g","amount":20},{"name":"蔥花","unit":"g","amount":15},{"name":"醬油","unit":"cc","amount":12},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切塊，煎至兩面金黃。","加蝦皮爆香。","加蔥花、醬油翻炒均勻。","盛盤即可。"],"tagClass":"tag-egg"},{"name":"肉末蒸蛋","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"豬絞肉","unit":"g","amount":100},{"name":"雞蛋","unit":"顆","amount":4},{"name":"高湯","unit":"cc","amount":380},{"name":"醬油","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":2}],"steps":["絞肉加醬油拌勻炒熟備用。","蛋加高湯、鹽打散過篩。","先蒸蛋液至半凝固。","鋪上肉末繼續蒸熟即可。"],"tagClass":"tag-egg"},{"name":"蔥燒豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"蔥段","unit":"g","amount":60},{"name":"醬油","unit":"cc","amount":30},{"name":"糖","unit":"g","amount":8},{"name":"水","unit":"cc","amount":80},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["豆腐切厚片，煎至兩面金黃。","爆香蔥段至微焦。","加醬油、糖、水放入豆腐。","燒至湯汁收入即可。"],"tagClass":"tag-egg"},{"name":"韓式軟豆腐鍋","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"軟豆腐","unit":"g","amount":500},{"name":"蛤蜊","unit":"g","amount":150},{"name":"韓式辣醬","unit":"g","amount":25},{"name":"雞蛋","unit":"顆","amount":2},{"name":"蔥花","unit":"g","amount":10},{"name":"水","unit":"cc","amount":500}],"steps":["水加韓式辣醬煮滾。","放入軟豆腐，用湯匙分塊。","加蛤蜊煮至開口。","打入蛋，撒蔥花即可。"],"tagClass":"tag-egg"},{"name":"腐竹炒肉片","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"腐竹","unit":"g","amount":100},{"name":"豬肉片","unit":"g","amount":200},{"name":"木耳","unit":"g","amount":80},{"name":"醬油","unit":"cc","amount":20},{"name":"蠔油","unit":"cc","amount":12},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["腐竹泡水至軟，切段。","木耳切條，肉片醃好。","熱鍋炒肉片至熟。","加腐竹、木耳、調料翻炒均勻。"],"tagClass":"tag-egg"},{"name":"番茄豆腐煮","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"嫩豆腐","unit":"g","amount":450},{"name":"番茄","unit":"g","amount":300},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":4},{"name":"糖","unit":"g","amount":5},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["番茄切塊，豆腐切塊。","熱鍋爆香蒜末，加番茄炒出湯汁。","放入豆腐輕推翻炒。","加鹽、糖調味即可。"],"tagClass":"tag-egg"},{"name":"蒸豆腐肉丸","time":"約 25 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":300},{"name":"豬絞肉","unit":"g","amount":250},{"name":"蔥花","unit":"g","amount":20},{"name":"薑末","unit":"g","amount":8},{"name":"醬油","unit":"cc","amount":20},{"name":"太白粉","unit":"g","amount":12},{"name":"香油","unit":"cc","amount":8}],"steps":["豆腐壓碎，與絞肉、所有調料拌勻。","揉成丸子排盤。","電鍋外鍋1杯水蒸20分鐘至熟。","淋少許醬油即可。"],"tagClass":"tag-egg"},{"name":"豆腐捲","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"豆腐皮","unit":"張","amount":4},{"name":"豬絞肉","unit":"g","amount":200},{"name":"蔥花","unit":"g","amount":15},{"name":"醬油","unit":"cc","amount":15},{"name":"太白粉","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["絞肉加蔥花、醬油、太白粉拌勻。","豆腐皮攤平，鋪上肉餡捲起。","熱鍋下油，豆腐捲煎至兩面金黃。","切塊盛盤即可。"],"tagClass":"tag-egg"},{"name":"鹹蛋炒苦瓜","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"苦瓜","unit":"g","amount":350},{"name":"鹹蛋黃","unit":"個","amount":3},{"name":"蒜末","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":2},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["苦瓜去籽切片，汆燙備用。","鹹蛋黃壓碎，熱鍋下油炒至起泡。","加苦瓜翻炒均勻。","加鹽調味即可。"],"tagClass":"tag-egg"},{"name":"炒蛋豆腐","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋豆腐","unit":"盒","amount":2},{"name":"豬絞肉","unit":"g","amount":100},{"name":"蔥花","unit":"g","amount":12},{"name":"醬油","unit":"cc","amount":15},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["蛋豆腐切塊，煎至兩面金黃。","另起鍋炒絞肉加醬油炒熟。","加蛋豆腐翻拌。","撒蔥花即可。"],"tagClass":"tag-egg"},{"name":"蛋黃獅子頭","time":"約 30 分鐘","tag":"蛋類","ingredients":[{"name":"豬絞肉","unit":"g","amount":400},{"name":"雞蛋","unit":"顆","amount":3},{"name":"荸薺","unit":"g","amount":80},{"name":"薑末","unit":"g","amount":8},{"name":"醬油","unit":"cc","amount":25},{"name":"太白粉","unit":"g","amount":20},{"name":"水","unit":"cc","amount":500}],"steps":["荸薺切碎，與絞肉、蛋、調料拌勻。","塑形成大丸子。","電鍋加水，放入丸子外鍋1杯水蒸20分鐘。","起鍋淋少許醬油即可。"],"tagClass":"tag-egg"},{"name":"醬燒豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"蒜末","unit":"g","amount":12},{"name":"豆瓣醬","unit":"g","amount":15},{"name":"醬油","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":5},{"name":"水","unit":"cc","amount":80},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["豆腐切塊煎至兩面金黃。","爆香蒜末與豆瓣醬。","加豆腐、醬油、糖、水翻炒。","燒至湯汁略收即可。"],"tagClass":"tag-egg"},{"name":"番茄炒蛋豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋豆腐","unit":"盒","amount":2},{"name":"番茄","unit":"g","amount":250},{"name":"雞蛋","unit":"顆","amount":2},{"name":"糖","unit":"g","amount":5},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["蛋豆腐切塊，番茄切塊。","熱鍋炒蛋至半熟起鍋。","加番茄炒出湯汁，加糖、鹽。","放回蛋與蛋豆腐翻炒均勻。"],"tagClass":"tag-egg"},{"name":"茄汁豆腐","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"番茄醬","unit":"cc","amount":40},{"name":"醬油","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":8},{"name":"蒜末","unit":"g","amount":10},{"name":"水","unit":"cc","amount":60},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["豆腐切塊煎至兩面金黃。","爆香蒜末，加番茄醬炒香。","加豆腐、醬油、糖、水翻炒。","燒至入味即可。"],"tagClass":"tag-egg"},{"name":"豆腐炒肉絲","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":400},{"name":"豬肉絲","unit":"g","amount":150},{"name":"醬油","unit":"cc","amount":18},{"name":"蔥花","unit":"g","amount":12},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切條煎至金黃備用。","同鍋炒肉絲加醬油炒熟。","放回豆腐輕輕翻炒。","撒蔥花即可。"],"tagClass":"tag-egg"},{"name":"水炒蛋","time":"約 8 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":5},{"name":"蔥花","unit":"g","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"水","unit":"cc","amount":30},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["蛋打散加鹽、水、蔥花拌勻。","熱鍋下油至五成熱。","倒入蛋液，邊加熱邊輕輕攪拌。","半熟即可起鍋，蛋嫩滑為佳。"],"tagClass":"tag-egg"},{"name":"起司蛋捲","time":"約 10 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":4},{"name":"起司片","unit":"片","amount":3},{"name":"鹽","unit":"g","amount":3},{"name":"牛奶","unit":"cc","amount":20},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["蛋打散加鹽、牛奶拌勻。","熱鍋下油倒入蛋液。","半熟時放起司片。","捲起煎至金黃即可。"],"tagClass":"tag-egg"},{"name":"炸豆腐","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"太白粉","unit":"g","amount":40},{"name":"醬油膏","unit":"cc","amount":30},{"name":"薑末","unit":"g","amount":8},{"name":"蔥花","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":300}],"steps":["豆腐切塊，吸乾水分裹太白粉。","油鍋炸至金黃酥脆撈起。","調好沾醬（醬油膏+薑末）。","豆腐排盤，淋醬撒蔥花即可。"],"tagClass":"tag-egg"},{"name":"豆腐獅子頭","time":"約 30 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":250},{"name":"豬絞肉","unit":"g","amount":250},{"name":"荸薺","unit":"g","amount":60},{"name":"薑末","unit":"g","amount":8},{"name":"醬油","unit":"cc","amount":20},{"name":"太白粉","unit":"g","amount":15},{"name":"大白菜","unit":"g","amount":300},{"name":"水","unit":"cc","amount":600}],"steps":["豆腐壓碎，與絞肉、荸薺、調料拌勻。","塑形成大丸子。","白菜鋪鍋底，放入丸子加水。","蓋鍋小火燜20分鐘至熟透。"],"tagClass":"tag-egg"},{"name":"鹹魚豆腐煲","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"鹹魚","unit":"g","amount":40},{"name":"豬絞肉","unit":"g","amount":100},{"name":"薑末","unit":"g","amount":8},{"name":"醬油","unit":"cc","amount":15},{"name":"水","unit":"cc","amount":100},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切塊煎至金黃。","爆香鹹魚與薑末至香味出來。","加絞肉炒熟，加豆腐。","加醬油、水燜煮5分鐘。"],"tagClass":"tag-egg"},{"name":"玉米蒸蛋","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":4},{"name":"玉米醬","unit":"g","amount":100},{"name":"高湯","unit":"cc","amount":300},{"name":"鹽","unit":"g","amount":3},{"name":"香油","unit":"cc","amount":5}],"steps":["蛋打散加玉米醬、高湯、鹽攪勻。","過篩後蓋保鮮膜。","電鍋外鍋半杯水蒸熟。","起鍋淋香油即可。"],"tagClass":"tag-egg"},{"name":"鑲豆腐","time":"約 25 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"蝦仁","unit":"g","amount":150},{"name":"豬絞肉","unit":"g","amount":100},{"name":"蔥花","unit":"g","amount":12},{"name":"醬油","unit":"cc","amount":15},{"name":"太白粉","unit":"g","amount":10},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["蝦仁切碎，與絞肉、蔥花、調料拌勻。","豆腐切厚片，中間挖洞填入肉餡。","熱鍋下油，肉面朝下煎至金黃。","翻面加水蓋鍋燜5分鐘即可。"],"tagClass":"tag-egg"},{"name":"蒸肉豆腐","time":"約 25 分鐘","tag":"蛋類","ingredients":[{"name":"嫩豆腐","unit":"g","amount":400},{"name":"豬絞肉","unit":"g","amount":200},{"name":"醬油","unit":"cc","amount":20},{"name":"薑末","unit":"g","amount":6},{"name":"太白粉","unit":"g","amount":8},{"name":"香油","unit":"cc","amount":8},{"name":"蔥花","unit":"g","amount":10}],"steps":["豆腐切塊排盤。","絞肉加所有調料拌勻，鋪在豆腐上。","電鍋外鍋1杯水蒸20分鐘至熟。","撒蔥花即可。"],"tagClass":"tag-egg"},{"name":"辣炒豆乾肉絲","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"豆腐乾","unit":"g","amount":250},{"name":"豬肉絲","unit":"g","amount":150},{"name":"辣椒","unit":"根","amount":2},{"name":"蒜末","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":18},{"name":"米酒","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐乾切條，肉絲醃好備用。","熱鍋爆香蒜末與辣椒。","加肉絲炒熟，加豆腐乾翻炒。","加醬油、米酒炒均勻即可。"],"tagClass":"tag-egg"},{"name":"泡菜炒豆腐","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":450},{"name":"韓式泡菜","unit":"g","amount":150},{"name":"蒜末","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切塊煎至金黃。","爆香蒜末，加泡菜翻炒。","加豆腐翻炒均勻。","加醬油調味即可。"],"tagClass":"tag-egg"},{"name":"香蒜烤豆腐","time":"約 25 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":500},{"name":"蒜末","unit":"g","amount":20},{"name":"醬油","unit":"cc","amount":25},{"name":"蜂蜜","unit":"g","amount":12},{"name":"黑胡椒","unit":"g","amount":3},{"name":"橄欖油","unit":"cc","amount":20}],"steps":["豆腐切片，混合醬汁醃15分鐘。","烤箱預熱200度。","豆腐排烤盤，烤15分鐘至焦香。","取出撒少許黑胡椒即可。"],"tagClass":"tag-egg"},{"name":"豆腐炒金針菇","time":"約 12 分鐘","tag":"蛋類","ingredients":[{"name":"板豆腐","unit":"g","amount":400},{"name":"金針菇","unit":"g","amount":200},{"name":"蒜末","unit":"g","amount":10},{"name":"蠔油","unit":"cc","amount":20},{"name":"醬油","unit":"cc","amount":10},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["豆腐切塊煎至金黃備用。","爆香蒜末，加金針菇翻炒。","加豆腐翻炒。","加蠔油、醬油調味均勻即可。"],"tagClass":"tag-egg"},{"name":"三色蒸蛋","time":"約 20 分鐘","tag":"蛋類","ingredients":[{"name":"雞蛋","unit":"顆","amount":3},{"name":"皮蛋","unit":"顆","amount":1},{"name":"鹹蛋","unit":"顆","amount":1},{"name":"高湯","unit":"cc","amount":300},{"name":"鹽","unit":"g","amount":2}],"steps":["皮蛋、鹹蛋切塊排盤。","雞蛋加高湯、鹽打散過篩。","倒入盤中蓋保鮮膜。","電鍋外鍋半杯水蒸熟即可。"],"tagClass":"tag-egg"},{"name":"百頁豆腐燒","time":"約 15 分鐘","tag":"蛋類","ingredients":[{"name":"百頁豆腐","unit":"g","amount":400},{"name":"醬油","unit":"cc","amount":30},{"name":"糖","unit":"g","amount":8},{"name":"蒜末","unit":"g","amount":12},{"name":"水","unit":"cc","amount":80},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["百頁豆腐切片，煎至兩面金黃。","爆香蒜末。","加醬油、糖、水翻炒。","燒至湯汁略收即可。"],"tagClass":"tag-egg"}],"soup":[{"name":"海帶芽蛋花湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"乾海帶芽","unit":"g","amount":12},{"name":"雞蛋","unit":"顆","amount":2},{"name":"薑片","unit":"g","amount":6},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":6},{"name":"水","unit":"cc","amount":1200}],"steps":["海帶芽泡水5分鐘瀝乾。","水燒開加薑片、海帶芽煮5分鐘。","蛋打散沿鍋邊倒入做蛋花。","加鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"味噌豆腐湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"嫩豆腐","unit":"g","amount":300},{"name":"味噌","unit":"g","amount":40},{"name":"蔥花","unit":"g","amount":12},{"name":"柴魚昆布高湯","unit":"cc","amount":1200}],"steps":["高湯煮滾，豆腐切丁放入。","小火煮3分鐘後關火。","味噌溶開後倒入，勿再開火。","撒蔥花盛碗。"],"tagClass":"tag-soup"},{"name":"冬瓜排骨湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":450},{"name":"冬瓜","unit":"g","amount":600},{"name":"薑片","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":6},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙洗淨。","冬瓜去皮切大塊。","電鍋外鍋1.5杯水蒸50分鐘。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"大白菜肉片湯","time":"約 20 分鐘","tag":"湯品","ingredients":[{"name":"大白菜","unit":"g","amount":450},{"name":"豬里肌薄片","unit":"g","amount":200},{"name":"薑片","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":5},{"name":"香油","unit":"cc","amount":6},{"name":"水","unit":"cc","amount":1500}],"steps":["白菜切段，肉片抓醃。","水燒開加薑片、白菜煮軟。","放肉片撥散煮熟。","加鹽、香油調味。"],"tagClass":"tag-soup"},{"name":"玉米排骨湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":400},{"name":"玉米","unit":"根","amount":1},{"name":"紅蘿蔔","unit":"g","amount":150},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙，玉米切段，蘿蔔切塊。","電鍋外鍋1.5杯水燉50分鐘。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"蘿蔔貢丸湯","time":"約 20 分鐘","tag":"湯品","ingredients":[{"name":"白蘿蔔","unit":"g","amount":600},{"name":"貢丸","unit":"g","amount":200},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1500}],"steps":["白蘿蔔去皮切塊。","水燒開加蘿蔔、薑片煮15分鐘。","放貢丸再煮5分鐘。","加鹽、香油調味。"],"tagClass":"tag-soup"},{"name":"蓮藕花生排骨湯","time":"約 60 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":450},{"name":"蓮藕","unit":"g","amount":450},{"name":"花生","unit":"g","amount":90},{"name":"薑片","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":6},{"name":"水","unit":"cc","amount":1800}],"steps":["花生泡水1小時，排骨汆燙。","蓮藕切厚片。","電鍋外鍋2杯水燉60分鐘。","加鹽調味。"],"tagClass":"tag-soup"},{"name":"豆腐蛤蜊湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"蛤蜊","unit":"g","amount":350},{"name":"嫩豆腐","unit":"g","amount":300},{"name":"薑絲","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"米酒","unit":"cc","amount":15},{"name":"水","unit":"cc","amount":1200}],"steps":["蛤蜊吐沙洗淨，豆腐切塊。","水燒開加薑絲、米酒。","加豆腐煮3分鐘，加蛤蜊煮至開口。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"薑母鴨湯（簡易版）","time":"約 40 分鐘","tag":"湯品","ingredients":[{"name":"鴨肉塊","unit":"g","amount":600},{"name":"老薑","unit":"g","amount":100},{"name":"麻油","unit":"cc","amount":40},{"name":"米酒","unit":"cc","amount":120},{"name":"水","unit":"cc","amount":1200},{"name":"鹽","unit":"g","amount":5}],"steps":["老薑切片，麻油爆香至微焦。","加鴨肉翻炒至表面上色。","加米酒大火煮滾。","加水，電鍋燉30分鐘，加鹽調味。"],"tagClass":"tag-soup"},{"name":"酸菜豬肉湯","time":"約 25 分鐘","tag":"湯品","ingredients":[{"name":"豬五花肉片","unit":"g","amount":250},{"name":"酸菜","unit":"g","amount":180},{"name":"薑片","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":3},{"name":"水","unit":"cc","amount":1500}],"steps":["酸菜洗去多餘鹽分切段。","水燒開加薑片、米酒。","加酸菜煮10分鐘。","加肉片撥散煮熟，加鹽調味。"],"tagClass":"tag-soup"},{"name":"苦瓜排骨湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":450},{"name":"苦瓜","unit":"g","amount":400},{"name":"鳳梨","unit":"g","amount":100},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙，苦瓜去籽切段，鳳梨切塊。","電鍋外鍋1.5杯水燉50分鐘。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"番茄蛋花湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"番茄","unit":"g","amount":350},{"name":"雞蛋","unit":"顆","amount":2},{"name":"蔥花","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1200}],"steps":["番茄切塊，蛋打散備用。","水燒開加番茄煮5分鐘。","蛋液沿鍋邊倒入做蛋花。","加鹽、香油，撒蔥花即可。"],"tagClass":"tag-soup"},{"name":"竹筍排骨湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":450},{"name":"竹筍","unit":"g","amount":350},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙，竹筍切塊。","電鍋外鍋1.5杯水燉50分鐘。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"豬肝湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"豬肝","unit":"g","amount":300},{"name":"薑絲","unit":"g","amount":15},{"name":"米酒","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":6},{"name":"水","unit":"cc","amount":1200}],"steps":["豬肝切片，薑絲備用。","水煮滾加薑絲與米酒。","放豬肝涮熟（約2分鐘）。","加鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"雞湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"雞腿","unit":"隻","amount":2},{"name":"薑片","unit":"g","amount":15},{"name":"米酒","unit":"cc","amount":30},{"name":"鹽","unit":"g","amount":6},{"name":"水","unit":"cc","amount":1800}],"steps":["雞腿汆燙備用。","電鍋加所有材料，外鍋1.5杯水。","燉50分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"鮮魚豆腐湯","time":"約 20 分鐘","tag":"湯品","ingredients":[{"name":"鱸魚或鯛魚","unit":"g","amount":400},{"name":"嫩豆腐","unit":"g","amount":300},{"name":"薑絲","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1200}],"steps":["魚切塊，豆腐切塊。","水燒開加薑絲、米酒。","加魚塊煮8分鐘至熟。","加豆腐、鹽、香油調味。"],"tagClass":"tag-soup"},{"name":"金針菇豆腐湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"金針菇","unit":"g","amount":180},{"name":"嫩豆腐","unit":"g","amount":350},{"name":"蔥花","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1200}],"steps":["金針菇切段，豆腐切塊。","水燒開加豆腐煮3分鐘。","加金針菇再煮2分鐘。","加鹽、香油，撒蔥花即可。"],"tagClass":"tag-soup"},{"name":"馬鈴薯排骨湯","time":"約 45 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":400},{"name":"馬鈴薯","unit":"g","amount":350},{"name":"紅蘿蔔","unit":"g","amount":150},{"name":"洋蔥","unit":"g","amount":100},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙，所有蔬菜切塊。","電鍋加所有食材外鍋1.5杯水。","燉45分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"海瓜子絲瓜湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"海瓜子","unit":"g","amount":350},{"name":"絲瓜","unit":"g","amount":400},{"name":"薑絲","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"水","unit":"cc","amount":1000}],"steps":["海瓜子吐沙，絲瓜去皮切塊。","水燒開加薑絲、絲瓜煮3分鐘。","加海瓜子與米酒，蓋鍋至開口。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"白菜豆腐獅子頭湯","time":"約 40 分鐘","tag":"湯品","ingredients":[{"name":"豬絞肉","unit":"g","amount":350},{"name":"大白菜","unit":"g","amount":400},{"name":"嫩豆腐","unit":"g","amount":200},{"name":"薑末","unit":"g","amount":10},{"name":"醬油","unit":"cc","amount":20},{"name":"太白粉","unit":"g","amount":15},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1500}],"steps":["絞肉加薑末、醬油、太白粉拌勻，做成獅子頭。","水燒開放入獅子頭，小火煮20分鐘。","加白菜、豆腐再煮10分鐘。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"四神湯","time":"約 60 分鐘","tag":"湯品","ingredients":[{"name":"豬小腸","unit":"g","amount":300},{"name":"蓮子","unit":"g","amount":50},{"name":"薏仁","unit":"g","amount":50},{"name":"山藥","unit":"g","amount":100},{"name":"芡實","unit":"g","amount":30},{"name":"米酒","unit":"cc","amount":50},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1500}],"steps":["豬小腸清洗乾淨，汆燙備用。","蓮子、薏仁、芡實泡水30分鐘。","電鍋加所有食材外鍋2杯水。","燉60分鐘後加米酒、鹽調味。"],"tagClass":"tag-soup"},{"name":"排骨藥膳湯","time":"約 60 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":450},{"name":"當歸","unit":"g","amount":5},{"name":"黃耆","unit":"g","amount":10},{"name":"紅棗","unit":"顆","amount":6},{"name":"枸杞","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":30},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙備用。","藥材略沖洗備用。","電鍋加所有食材外鍋2杯水。","燉60分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"雪菜肉絲湯","time":"約 20 分鐘","tag":"湯品","ingredients":[{"name":"豬肉絲","unit":"g","amount":200},{"name":"雪裡紅","unit":"g","amount":150},{"name":"豆腐","unit":"g","amount":200},{"name":"薑片","unit":"g","amount":8},{"name":"鹽","unit":"g","amount":4},{"name":"水","unit":"cc","amount":1200}],"steps":["雪裡紅洗淨切碎，肉絲醃好。","水燒開加薑片。","加肉絲撥散煮熟，加雪菜煮3分鐘。","加豆腐、鹽調味即可。"],"tagClass":"tag-soup"},{"name":"薑絲魚湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"虱目魚","unit":"g","amount":400},{"name":"薑絲","unit":"g","amount":20},{"name":"米酒","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1200}],"steps":["虱目魚切塊備用。","水燒開加薑絲。","放魚塊與米酒，中火煮8分鐘。","加鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"紫菜蛋花湯","time":"約 10 分鐘","tag":"湯品","ingredients":[{"name":"紫菜","unit":"g","amount":15},{"name":"雞蛋","unit":"顆","amount":2},{"name":"蔥花","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1200}],"steps":["紫菜撕片備用，蛋打散。","水燒開加紫菜煮2分鐘。","蛋液沿鍋邊倒入做蛋花。","加鹽、香油，撒蔥花即可。"],"tagClass":"tag-soup"},{"name":"絲瓜蛋湯","time":"約 12 分鐘","tag":"湯品","ingredients":[{"name":"絲瓜","unit":"g","amount":400},{"name":"雞蛋","unit":"顆","amount":2},{"name":"薑絲","unit":"g","amount":8},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1200}],"steps":["絲瓜去皮切塊。","水燒開加薑絲、絲瓜煮5分鐘。","蛋打散沿鍋邊倒入。","加鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"花蛤豆腐湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"花蛤","unit":"g","amount":400},{"name":"嫩豆腐","unit":"g","amount":300},{"name":"薑絲","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":4},{"name":"水","unit":"cc","amount":1200}],"steps":["花蛤吐沙，豆腐切塊。","水燒開加薑絲。","加豆腐煮3分鐘。","加花蛤、米酒煮至開口，加鹽調味。"],"tagClass":"tag-soup"},{"name":"鮭魚味噌湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"鮭魚","unit":"g","amount":250},{"name":"味噌","unit":"g","amount":35},{"name":"豆腐","unit":"g","amount":200},{"name":"蔥花","unit":"g","amount":10},{"name":"柴魚高湯","unit":"cc","amount":1200}],"steps":["高湯煮滾，鮭魚切塊放入。","煮5分鐘後加豆腐。","關火，溶入味噌。","撒蔥花即可。"],"tagClass":"tag-soup"},{"name":"蛋花玉米濃湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"玉米醬罐頭","unit":"g","amount":250},{"name":"雞蛋","unit":"顆","amount":2},{"name":"太白粉水","unit":"cc","amount":30},{"name":"雞高湯","unit":"cc","amount":1000},{"name":"鹽","unit":"g","amount":4},{"name":"白胡椒","unit":"g","amount":2}],"steps":["高湯加玉米醬煮滾。","加太白粉水勾芡。","蛋打散沿鍋邊倒入做蛋花。","加鹽、白胡椒調味即可。"],"tagClass":"tag-soup"},{"name":"菠菜豬血湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"豬血","unit":"g","amount":300},{"name":"菠菜","unit":"g","amount":200},{"name":"薑絲","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1200}],"steps":["豬血切塊，菠菜切段。","水燒開加薑絲。","加豬血煮5分鐘至熟。","加菠菜、鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"羅宋湯","time":"約 45 分鐘","tag":"湯品","ingredients":[{"name":"牛腩","unit":"g","amount":300},{"name":"番茄","unit":"g","amount":250},{"name":"馬鈴薯","unit":"g","amount":200},{"name":"紅蘿蔔","unit":"g","amount":150},{"name":"高麗菜","unit":"g","amount":150},{"name":"番茄醬","unit":"cc","amount":30},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1500}],"steps":["牛腩切塊汆燙，所有蔬菜切塊。","水煮滾加牛腩燉30分鐘。","加蔬菜、番茄醬再煮15分鐘。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"雞腿菇雞湯","time":"約 40 分鐘","tag":"湯品","ingredients":[{"name":"雞腿","unit":"隻","amount":2},{"name":"雞腿菇","unit":"g","amount":200},{"name":"薑片","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["雞腿汆燙，雞腿菇切塊。","電鍋加所有食材外鍋1.5杯水。","燉40分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"蚵仔湯","time":"約 10 分鐘","tag":"湯品","ingredients":[{"name":"新鮮蚵仔","unit":"g","amount":300},{"name":"薑絲","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"太白粉","unit":"g","amount":10},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1000}],"steps":["蚵仔洗淨，裹少許太白粉。","水燒開加薑絲、米酒。","放入蚵仔，煮至邊緣捲起即熟。","加鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"豬腳湯","time":"約 60 分鐘","tag":"湯品","ingredients":[{"name":"豬腳","unit":"g","amount":600},{"name":"薑片","unit":"g","amount":20},{"name":"米酒","unit":"cc","amount":50},{"name":"鹽","unit":"g","amount":6},{"name":"水","unit":"cc","amount":2000}],"steps":["豬腳汆燙洗淨。","電鍋加所有材料外鍋2杯水。","燉60分鐘至軟爛。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"鹹豬肉菜湯","time":"約 20 分鐘","tag":"湯品","ingredients":[{"name":"鹹豬肉","unit":"g","amount":200},{"name":"高麗菜","unit":"g","amount":300},{"name":"嫩豆腐","unit":"g","amount":200},{"name":"薑片","unit":"g","amount":8},{"name":"水","unit":"cc","amount":1200}],"steps":["鹹豬肉切片，高麗菜切段。","水燒開加薑片與鹹豬肉。","加高麗菜煮5分鐘。","加豆腐再煮3分鐘即可（不需加鹽）。"],"tagClass":"tag-soup"},{"name":"排骨海帶湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":400},{"name":"海帶結","unit":"g","amount":200},{"name":"薑片","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙，海帶結洗淨。","電鍋加所有食材外鍋1.5杯水。","燉50分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"牛蒡雞湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"雞腿","unit":"隻","amount":2},{"name":"牛蒡","unit":"g","amount":200},{"name":"紅棗","unit":"顆","amount":6},{"name":"薑片","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["雞腿汆燙，牛蒡切片泡水。","電鍋加所有食材外鍋1.5杯水。","燉50分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"南瓜濃湯","time":"約 25 分鐘","tag":"湯品","ingredients":[{"name":"南瓜","unit":"g","amount":500},{"name":"洋蔥","unit":"g","amount":100},{"name":"鮮奶","unit":"cc","amount":200},{"name":"雞高湯","unit":"cc","amount":600},{"name":"奶油","unit":"g","amount":20},{"name":"鹽","unit":"g","amount":5},{"name":"黑胡椒","unit":"g","amount":2}],"steps":["南瓜去皮切塊蒸熟，洋蔥炒軟。","南瓜、洋蔥加高湯用攪拌棒打勻。","加鮮奶、奶油煮滾。","加鹽、黑胡椒調味即可。"],"tagClass":"tag-soup"},{"name":"蘑菇濃湯","time":"約 25 分鐘","tag":"湯品","ingredients":[{"name":"蘑菇","unit":"g","amount":300},{"name":"洋蔥","unit":"g","amount":100},{"name":"鮮奶","unit":"cc","amount":200},{"name":"雞高湯","unit":"cc","amount":600},{"name":"奶油","unit":"g","amount":25},{"name":"鹽","unit":"g","amount":5},{"name":"黑胡椒","unit":"g","amount":2}],"steps":["奶油炒香洋蔥與蘑菇。","加高湯煮滾，用攪拌棒打勻。","加鮮奶再煮滾。","加鹽、黑胡椒調味即可。"],"tagClass":"tag-soup"},{"name":"烏骨雞湯","time":"約 60 分鐘","tag":"湯品","ingredients":[{"name":"烏骨雞","unit":"g","amount":600},{"name":"紅棗","unit":"顆","amount":8},{"name":"枸杞","unit":"g","amount":15},{"name":"薑片","unit":"g","amount":15},{"name":"米酒","unit":"cc","amount":30},{"name":"鹽","unit":"g","amount":6},{"name":"水","unit":"cc","amount":1800}],"steps":["烏骨雞汆燙洗淨。","電鍋加所有食材外鍋2杯水。","燉60分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"枸杞豬肝湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"豬肝","unit":"g","amount":250},{"name":"枸杞","unit":"g","amount":15},{"name":"薑絲","unit":"g","amount":15},{"name":"米酒","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":6},{"name":"水","unit":"cc","amount":1200}],"steps":["豬肝切片備用，枸杞泡水。","水煮滾加薑絲、米酒。","放豬肝涮熟，加枸杞。","加鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"豬肉片味噌湯","time":"約 15 分鐘","tag":"湯品","ingredients":[{"name":"豬肉薄片","unit":"g","amount":150},{"name":"大蔥","unit":"g","amount":50},{"name":"味噌","unit":"g","amount":35},{"name":"豆腐","unit":"g","amount":200},{"name":"柴魚高湯","unit":"cc","amount":1200}],"steps":["高湯煮滾，加豬肉片撥散。","加豆腐切塊、蔥段煮3分鐘。","關火溶入味噌。","盛碗即可。"],"tagClass":"tag-soup"},{"name":"薏仁排骨湯","time":"約 60 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":400},{"name":"薏仁","unit":"g","amount":80},{"name":"紅棗","unit":"顆","amount":6},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["薏仁泡水1小時，排骨汆燙。","電鍋加所有食材外鍋2杯水。","燉60分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"芋頭排骨湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":400},{"name":"芋頭","unit":"g","amount":400},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙，芋頭去皮切塊。","電鍋加所有食材外鍋1.5杯水。","燉50分鐘後加鹽調味。"],"tagClass":"tag-soup"},{"name":"花生豬腳湯","time":"約 60 分鐘","tag":"湯品","ingredients":[{"name":"豬腳","unit":"g","amount":600},{"name":"花生","unit":"g","amount":100},{"name":"薑片","unit":"g","amount":15},{"name":"米酒","unit":"cc","amount":30},{"name":"鹽","unit":"g","amount":6},{"name":"水","unit":"cc","amount":2000}],"steps":["花生泡水1小時，豬腳汆燙。","電鍋加所有食材外鍋2杯水。","燉60分鐘至軟爛。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"蝦米冬瓜湯","time":"約 20 分鐘","tag":"湯品","ingredients":[{"name":"冬瓜","unit":"g","amount":500},{"name":"蝦米","unit":"g","amount":20},{"name":"薑片","unit":"g","amount":8},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1200}],"steps":["冬瓜去皮切塊。","水燒開加薑片與蝦米。","加冬瓜煮15分鐘至透明。","加鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"山藥排骨湯","time":"約 45 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":400},{"name":"山藥","unit":"g","amount":350},{"name":"枸杞","unit":"g","amount":12},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙，山藥去皮切塊。","電鍋加排骨、薑片外鍋1.5杯水燉30分鐘。","加山藥、枸杞再燉15分鐘。","加鹽調味即可。"],"tagClass":"tag-soup"},{"name":"鯽魚豆腐湯","time":"約 25 分鐘","tag":"湯品","ingredients":[{"name":"鯽魚","unit":"尾","amount":2},{"name":"嫩豆腐","unit":"g","amount":300},{"name":"薑片","unit":"g","amount":12},{"name":"米酒","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"香油","unit":"cc","amount":5},{"name":"水","unit":"cc","amount":1500}],"steps":["鯽魚洗淨，熱油兩面煎至金黃。","加薑片、米酒、水，大火煮至湯色奶白。","加豆腐再煮5分鐘。","加鹽、香油調味即可。"],"tagClass":"tag-soup"},{"name":"豆漿排骨湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":400},{"name":"無糖豆漿","unit":"cc","amount":500},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"水","unit":"cc","amount":800}],"steps":["排骨汆燙備用。","水加薑片、排骨煮開。","轉小火燉30分鐘。","加豆漿再煮5分鐘，加鹽調味。"],"tagClass":"tag-soup"},{"name":"牛番茄排骨湯","time":"約 50 分鐘","tag":"湯品","ingredients":[{"name":"豬排骨","unit":"g","amount":400},{"name":"牛番茄","unit":"g","amount":400},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"糖","unit":"g","amount":5},{"name":"水","unit":"cc","amount":1800}],"steps":["排骨汆燙，番茄切大塊。","電鍋加所有食材外鍋1.5杯水。","燉50分鐘後加鹽、糖調味。"],"tagClass":"tag-soup"}]};
+
+
+const NOODLE_POOL = [{"name":"陽春麵","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"豬骨高湯","unit":"cc","amount":1500},{"name":"蔥花","unit":"g","amount":20},{"name":"醬油","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":5},{"name":"豬油","unit":"g","amount":15}],"steps":["高湯煮滾加醬油、鹽、豬油調味。","麵條另鍋煮熟撈起。","麵條放碗，倒入熱湯。","撒蔥花即可。"]},{"name":"肉燥麵","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"豬絞肉","unit":"g","amount":300},{"name":"醬油","unit":"cc","amount":50},{"name":"米酒","unit":"cc","amount":20},{"name":"糖","unit":"g","amount":10},{"name":"紅蔥頭","unit":"g","amount":30},{"name":"水","unit":"cc","amount":200},{"name":"蔥花","unit":"g","amount":15}],"steps":["紅蔥頭爆香至金黃，加絞肉炒熟。","加醬油、米酒、糖、水，小火燜15分鐘成肉燥。","麵條煮熟撈起放碗。","淋上肉燥，撒蔥花即可。"]},{"name":"榨菜肉絲麵","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"豬肉絲","unit":"g","amount":200},{"name":"榨菜","unit":"g","amount":80},{"name":"醬油","unit":"cc","amount":20},{"name":"麻油","unit":"cc","amount":10},{"name":"蔥花","unit":"g","amount":15},{"name":"高湯","unit":"cc","amount":1500}],"steps":["肉絲加醬油醃5分鐘，炒熟備用。","榨菜切絲，高湯煮滾調味。","麵條煮熟放碗，倒湯。","鋪上肉絲、榨菜，淋麻油撒蔥花。"]},{"name":"番茄雞蛋麵","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"番茄","unit":"g","amount":400},{"name":"雞蛋","unit":"顆","amount":3},{"name":"蒜末","unit":"g","amount":12},{"name":"鹽","unit":"g","amount":5},{"name":"糖","unit":"g","amount":6},{"name":"沙拉油","unit":"cc","amount":25},{"name":"水","unit":"cc","amount":600}],"steps":["蛋炒至半熟起鍋，番茄切塊爆炒出汁。","加水煮滾成番茄湯底，放回蛋。","加鹽、糖調味。","麵條煮熟放碗，淋上番茄蛋湯即可。"]},{"name":"麻醬麵","time":"約 10 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"芝麻醬","unit":"g","amount":80},{"name":"醬油","unit":"cc","amount":30},{"name":"醋","unit":"cc","amount":15},{"name":"糖","unit":"g","amount":8},{"name":"蒜末","unit":"g","amount":10},{"name":"辣油","unit":"cc","amount":10},{"name":"小黃瓜","unit":"g","amount":100}],"steps":["芝麻醬加醬油、醋、糖、蒜末、辣油調成醬汁。","小黃瓜切絲備用。","麵條煮熟撈起，拌少許香油防黏。","淋上麻醬，鋪小黃瓜絲拌勻即可。"]},{"name":"牛肉麵","time":"約 60 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"牛腩","unit":"g","amount":500},{"name":"豆瓣醬","unit":"g","amount":25},{"name":"番茄","unit":"g","amount":200},{"name":"醬油","unit":"cc","amount":50},{"name":"米酒","unit":"cc","amount":30},{"name":"蔥薑蒜","unit":"g","amount":40},{"name":"水","unit":"cc","amount":1500}],"steps":["牛腩切塊汆燙備用。","爆香蔥薑蒜，加豆瓣醬炒香。","加番茄、牛腩、醬油、米酒、水，大火燒開。","轉小火燉50分鐘，麵條煮熟放碗淋湯即可。"]},{"name":"蚵仔麵線","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"麵線","unit":"g","amount":200},{"name":"蚵仔","unit":"g","amount":200},{"name":"太白粉","unit":"g","amount":20},{"name":"豬大腸","unit":"g","amount":100},{"name":"蒜末","unit":"g","amount":15},{"name":"烏醋","unit":"cc","amount":20},{"name":"醬油","unit":"cc","amount":15},{"name":"水","unit":"cc","amount":1500}],"steps":["高湯煮滾，加麵線（先泡軟）煮3分鐘。","加太白粉水勾成稠湯底。","放入蚵仔與大腸煮熟。","加醬油調味，盛碗淋烏醋即可。"]},{"name":"炒米粉","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"細米粉","unit":"g","amount":300},{"name":"豬肉絲","unit":"g","amount":150},{"name":"高麗菜","unit":"g","amount":200},{"name":"紅蘿蔔","unit":"g","amount":60},{"name":"醬油","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":4},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["米粉泡水至軟，高麗菜、紅蘿蔔切絲。","熱鍋炒肉絲至熟，加蔬菜翻炒。","放入米粉，加醬油、鹽，加少許水翻炒。","炒至米粉熟透入味即可。"]},{"name":"炒烏龍麵","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"烏龍麵","unit":"g","amount":500},{"name":"豬肉片","unit":"g","amount":150},{"name":"高麗菜","unit":"g","amount":200},{"name":"紅蘿蔔","unit":"g","amount":60},{"name":"日式醬油","unit":"cc","amount":30},{"name":"味醂","unit":"cc","amount":20},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["烏龍麵用熱水燙開備用。","熱鍋炒肉片至變色，加蔬菜翻炒。","加烏龍麵，倒入醬油、味醂翻炒均勻。","炒至湯汁收乾即可。"]},{"name":"韓式泡麵鍋","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"韓式泡麵","unit":"包","amount":3},{"name":"豬五花肉片","unit":"g","amount":150},{"name":"年糕","unit":"g","amount":100},{"name":"泡菜","unit":"g","amount":100},{"name":"雞蛋","unit":"顆","amount":3},{"name":"起司片","unit":"片","amount":2},{"name":"水","unit":"cc","amount":1200}],"steps":["水燒開加泡麵調味包。","加豬肉片、年糕、泡菜煮滾。","放入麵條煮3分鐘。","打入蛋，鋪起司片，蓋鍋至融化。"]},{"name":"麻辣拌麵","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"花椒油","unit":"cc","amount":15},{"name":"辣椒油","unit":"cc","amount":15},{"name":"醬油","unit":"cc","amount":25},{"name":"蒜末","unit":"g","amount":12},{"name":"花生碎","unit":"g","amount":30},{"name":"蔥花","unit":"g","amount":15},{"name":"白醋","unit":"cc","amount":10}],"steps":["調好麻辣醬汁：花椒油、辣椒油、醬油、醋、蒜末混合。","麵條煮熟撈起，淋少許香油防黏。","淋上麻辣醬汁拌勻。","撒花生碎與蔥花即可。"]},{"name":"炸醬麵","time":"約 25 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"豬絞肉","unit":"g","amount":250},{"name":"黃豆醬","unit":"g","amount":60},{"name":"甜麵醬","unit":"g","amount":30},{"name":"洋蔥","unit":"g","amount":100},{"name":"小黃瓜","unit":"g","amount":80},{"name":"紅蘿蔔","unit":"g","amount":60},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["洋蔥炒香，加絞肉炒熟。","加黃豆醬、甜麵醬小火炒10分鐘成炸醬。","小黃瓜、紅蘿蔔切絲備用。","麵條煮熟放碗，鋪炸醬與蔬菜絲，拌勻食用。"]},{"name":"台式乾麵","time":"約 10 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"豬油","unit":"g","amount":25},{"name":"醬油膏","unit":"cc","amount":30},{"name":"烏醋","unit":"cc","amount":10},{"name":"蔥花","unit":"g","amount":20},{"name":"白胡椒","unit":"g","amount":3}],"steps":["麵條煮熟撈起放碗。","加豬油、醬油膏、烏醋、白胡椒。","拌勻至麵條均勻裹醬。","撒蔥花即可。"]},{"name":"擔仔麵","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"麵線","unit":"g","amount":250},{"name":"蝦","unit":"尾","amount":9},{"name":"豬絞肉","unit":"g","amount":150},{"name":"紅蔥頭","unit":"g","amount":20},{"name":"蝦米","unit":"g","amount":15},{"name":"醬油","unit":"cc","amount":20},{"name":"高湯","unit":"cc","amount":1200}],"steps":["紅蔥頭爆香至金黃，加絞肉炒成肉燥。","蝦汆燙至熟備用。","高湯煮滾調味，麵線燙熟放碗。","淋湯，放蝦與肉燥即可。"]},{"name":"薑母鴨麵線","time":"約 40 分鐘","tag":"麵食","ingredients":[{"name":"麵線","unit":"g","amount":250},{"name":"鴨肉塊","unit":"g","amount":500},{"name":"老薑","unit":"g","amount":80},{"name":"麻油","unit":"cc","amount":35},{"name":"米酒","unit":"cc","amount":100},{"name":"水","unit":"cc","amount":1200},{"name":"鹽","unit":"g","amount":5}],"steps":["麻油爆香老薑至微焦，加鴨肉翻炒上色。","加米酒、水大火煮滾。","轉小火燜30分鐘。","麵線燙熟放碗，淋上薑母鴨湯即可。"]},{"name":"客家板條","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"板條","unit":"g","amount":500},{"name":"豬肉片","unit":"g","amount":150},{"name":"韭菜","unit":"g","amount":60},{"name":"豆芽","unit":"g","amount":100},{"name":"醬油","unit":"cc","amount":25},{"name":"沙茶醬","unit":"g","amount":20},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["板條用熱水泡開備用。","熱鍋炒肉片至熟，加豆芽翻炒。","加板條、醬油、沙茶醬大火翻炒。","加韭菜翻炒均勻即可。"]},{"name":"越式河粉","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"河粉","unit":"g","amount":400},{"name":"牛肉片","unit":"g","amount":250},{"name":"牛骨高湯","unit":"cc","amount":1500},{"name":"魚露","unit":"cc","amount":20},{"name":"八角","unit":"顆","amount":2},{"name":"薑片","unit":"g","amount":10},{"name":"豆芽","unit":"g","amount":100},{"name":"九層塔","unit":"g","amount":10}],"steps":["高湯加薑、八角、魚露煮20分鐘調味。","河粉用熱水燙軟放碗。","生牛肉片鋪在河粉上。","淋上滾熱湯，附豆芽與九層塔即可。"]},{"name":"日式拉麵（叉燒版）","time":"約 30 分鐘","tag":"麵食","ingredients":[{"name":"拉麵","unit":"g","amount":400},{"name":"豬五花肉","unit":"g","amount":300},{"name":"醬油","unit":"cc","amount":60},{"name":"味醂","unit":"cc","amount":40},{"name":"豬骨高湯","unit":"cc","amount":1500},{"name":"雞蛋","unit":"顆","amount":3},{"name":"蔥花","unit":"g","amount":15}],"steps":["五花肉捲起綁好，加醬油、味醂滷熟成叉燒。","雞蛋煮6分半，泡入滷汁成溏心蛋。","高湯加少許醬油調好湯底。","麵條煮熟放碗，淋湯，鋪叉燒與溏心蛋。"]},{"name":"蕃茄肉醬義大利麵","time":"約 25 分鐘","tag":"麵食","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"豬牛混合絞肉","unit":"g","amount":300},{"name":"番茄罐頭","unit":"g","amount":400},{"name":"洋蔥","unit":"g","amount":150},{"name":"蒜末","unit":"g","amount":15},{"name":"橄欖油","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":5},{"name":"黑胡椒","unit":"g","amount":3}],"steps":["洋蔥、蒜末炒香，加絞肉炒熟。","加番茄罐頭，小火燉15分鐘成肉醬。","義大利麵煮熟，加鹽調味。","麵條放盤，淋上肉醬即可。"]},{"name":"奶油培根義大利麵","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"培根","unit":"g","amount":150},{"name":"鮮奶油","unit":"cc","amount":200},{"name":"雞蛋","unit":"顆","amount":3},{"name":"起司粉","unit":"g","amount":30},{"name":"蒜末","unit":"g","amount":10},{"name":"黑胡椒","unit":"g","amount":4},{"name":"鹽","unit":"g","amount":4}],"steps":["義大利麵煮熟備用（留些煮麵水）。","培根炒香，加蒜末爆香。","蛋打散加鮮奶油、起司粉攪勻。","鍋子離火，加麵與蛋奶液快速拌勻，加黑胡椒。"]},{"name":"鍋燒意麵","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"意麵","unit":"g","amount":400},{"name":"蝦","unit":"尾","amount":6},{"name":"蛤蜊","unit":"g","amount":150},{"name":"高麗菜","unit":"g","amount":100},{"name":"雞蛋","unit":"顆","amount":3},{"name":"高湯","unit":"cc","amount":1200},{"name":"醬油","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":4}],"steps":["高湯煮滾加醬油、鹽調味。","加蝦、蛤蜊、高麗菜煮熟。","放入意麵煮3分鐘。","打入蛋煮至半熟即可。"]},{"name":"米苔目湯","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"米苔目","unit":"g","amount":500},{"name":"豬大骨湯","unit":"cc","amount":1500},{"name":"豬肉片","unit":"g","amount":150},{"name":"油蔥酥","unit":"g","amount":20},{"name":"鹽","unit":"g","amount":5},{"name":"芹菜","unit":"g","amount":30}],"steps":["豬骨高湯煮滾加鹽調味。","加豬肉片涮熟。","米苔目燙熱放碗。","淋湯，撒油蔥酥與芹菜末即可。"]},{"name":"泰式炒河粉（乾炒）","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"河粉","unit":"g","amount":400},{"name":"蝦仁","unit":"g","amount":150},{"name":"豆腐","unit":"g","amount":100},{"name":"雞蛋","unit":"顆","amount":3},{"name":"豆芽","unit":"g","amount":100},{"name":"魚露","unit":"cc","amount":20},{"name":"棕糖","unit":"g","amount":15},{"name":"檸檬汁","unit":"cc","amount":15},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["河粉泡軟備用，豆腐切丁炸至金黃。","熱鍋炒蝦仁，加河粉大火翻炒。","推到一邊，炒散雞蛋。","加魚露、棕糖、豆芽、豆腐翻炒，擠檸檬汁。"]},{"name":"酸辣粉","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"紅薯粉條","unit":"g","amount":300},{"name":"豬絞肉","unit":"g","amount":150},{"name":"酸菜","unit":"g","amount":60},{"name":"花生碎","unit":"g","amount":30},{"name":"辣油","unit":"cc","amount":15},{"name":"醬油","unit":"cc","amount":20},{"name":"醋","unit":"cc","amount":20},{"name":"高湯","unit":"cc","amount":1200}],"steps":["粉條泡水至軟備用。","絞肉炒香，酸菜切碎備用。","高湯加辣油、醬油、醋調成酸辣湯底。","粉條燙熟放碗，淋湯，鋪絞肉、酸菜、花生碎。"]},{"name":"台式炒麵","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"油麵","unit":"g","amount":500},{"name":"豬肉片","unit":"g","amount":150},{"name":"高麗菜","unit":"g","amount":200},{"name":"紅蘿蔔","unit":"g","amount":60},{"name":"醬油","unit":"cc","amount":25},{"name":"沙茶醬","unit":"g","amount":20},{"name":"沙拉油","unit":"cc","amount":25}],"steps":["熱鍋下油，炒豬肉片至熟。","加高麗菜、紅蘿蔔翻炒。","加油麵、醬油、沙茶醬大火翻炒。","加少許水炒至麵條熟透入味。"]},{"name":"雞湯麵","time":"約 20 分鐘","tag":"麵食","ingredients":[{"name":"麵條","unit":"g","amount":450},{"name":"雞腿肉","unit":"g","amount":300},{"name":"雞高湯","unit":"cc","amount":1500},{"name":"薑片","unit":"g","amount":10},{"name":"鹽","unit":"g","amount":5},{"name":"蔥花","unit":"g","amount":15},{"name":"白胡椒","unit":"g","amount":2}],"steps":["雞腿肉加高湯、薑片煮熟，撈起撕成雞絲。","雞湯加鹽調味。","麵條另鍋煮熟放碗。","淋雞湯，鋪雞絲，撒蔥花、白胡椒。"]},{"name":"冬粉煮","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"冬粉","unit":"g","amount":200},{"name":"蝦仁","unit":"g","amount":150},{"name":"蛤蜊","unit":"g","amount":200},{"name":"嫩豆腐","unit":"g","amount":200},{"name":"薑絲","unit":"g","amount":10},{"name":"米酒","unit":"cc","amount":15},{"name":"鹽","unit":"g","amount":4},{"name":"水","unit":"cc","amount":1200}],"steps":["冬粉泡水至軟。","水燒開加薑絲、米酒、豆腐煮3分鐘。","加蛤蜊、蝦仁煮熟。","加冬粉再煮2分鐘，加鹽調味即可。"]},{"name":"麻油雞麵線","time":"約 25 分鐘","tag":"麵食","ingredients":[{"name":"麵線","unit":"g","amount":250},{"name":"雞腿肉","unit":"g","amount":400},{"name":"老薑","unit":"g","amount":60},{"name":"麻油","unit":"cc","amount":35},{"name":"米酒","unit":"cc","amount":100},{"name":"水","unit":"cc","amount":1000},{"name":"鹽","unit":"g","amount":4}],"steps":["麻油爆香老薑至微焦。","加雞肉翻炒至表面上色。","加米酒、水，燜煮20分鐘。","麵線燙熟放碗，淋上麻油雞湯即可。"]},{"name":"豬腳麵線","time":"約 60 分鐘","tag":"麵食","ingredients":[{"name":"麵線","unit":"g","amount":250},{"name":"豬腳","unit":"g","amount":600},{"name":"醬油","unit":"cc","amount":60},{"name":"米酒","unit":"cc","amount":40},{"name":"糖","unit":"g","amount":15},{"name":"紅蔥頭","unit":"g","amount":30},{"name":"水","unit":"cc","amount":1000}],"steps":["豬腳汆燙備用。","紅蔥頭爆香至金黃，加豬腳翻炒上色。","加醬油、米酒、糖、水，大火燒開。","轉小火燜50分鐘，麵線燙熟放碗淋湯。"]},{"name":"什錦炒冬粉","time":"約 15 分鐘","tag":"麵食","ingredients":[{"name":"冬粉","unit":"g","amount":200},{"name":"豬肉絲","unit":"g","amount":150},{"name":"木耳","unit":"g","amount":60},{"name":"紅蘿蔔","unit":"g","amount":60},{"name":"蛋","unit":"顆","amount":2},{"name":"醬油","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":3},{"name":"沙拉油","unit":"cc","amount":20}],"steps":["冬粉泡軟，木耳、紅蘿蔔切絲。","熱鍋炒蛋成蛋花起鍋備用。","同鍋炒肉絲與蔬菜至熟。","加冬粉、醬油、鹽翻炒，放回蛋花即可。"]}];
+
+const PASTA_POOL = [{"name":"番茄肉醬義大利麵","time":"約 25 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"豬牛混合絞肉","unit":"g","amount":300},{"name":"番茄罐頭","unit":"g","amount":400},{"name":"洋蔥","unit":"g","amount":150},{"name":"蒜末","unit":"g","amount":15},{"name":"橄欖油","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":5},{"name":"黑胡椒","unit":"g","amount":3},{"name":"羅勒葉","unit":"g","amount":5}],"steps":["洋蔥、蒜末以橄欖油炒香，加絞肉炒熟。","加番茄罐頭，小火燉15分鐘成肉醬，加鹽調味。","義大利麵加鹽煮至彈牙，保留半杯煮麵水。","麵條放盤，淋上肉醬，撒羅勒與黑胡椒。"]},{"name":"奶油培根義大利麵","time":"約 20 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利寬麵","unit":"g","amount":400},{"name":"培根","unit":"g","amount":150},{"name":"鮮奶油","unit":"cc","amount":200},{"name":"雞蛋","unit":"顆","amount":3},{"name":"帕瑪森起司粉","unit":"g","amount":30},{"name":"蒜末","unit":"g","amount":10},{"name":"黑胡椒","unit":"g","amount":4},{"name":"鹽","unit":"g","amount":4}],"steps":["義大利麵煮至彈牙，保留煮麵水備用。","培根切條炒至酥脆，加蒜末爆香。","蛋黃加鮮奶油、起司粉、黑胡椒攪勻。","鍋離火，加麵與蛋奶液、少許煮麵水快速拌勻。"]},{"name":"青醬雞肉義大利麵","time":"約 25 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"雞胸肉","unit":"g","amount":300},{"name":"青醬（市售）","unit":"g","amount":80},{"name":"小番茄","unit":"g","amount":100},{"name":"橄欖油","unit":"cc","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"黑胡椒","unit":"g","amount":3},{"name":"起司粉","unit":"g","amount":20}],"steps":["雞胸肉切薄片，加鹽、黑胡椒煎熟備用。","小番茄對半切，橄欖油略炒備用。","義大利麵加鹽煮熟，留少許煮麵水。","麵條加青醬、煮麵水拌勻，鋪雞肉與番茄，撒起司粉。"]},{"name":"海鮮義大利麵","time":"約 25 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利細麵","unit":"g","amount":400},{"name":"蝦仁","unit":"g","amount":200},{"name":"蛤蜊","unit":"g","amount":200},{"name":"透抽","unit":"g","amount":150},{"name":"蒜末","unit":"g","amount":20},{"name":"白酒","unit":"cc","amount":50},{"name":"橄欖油","unit":"cc","amount":30},{"name":"辣椒片","unit":"g","amount":3},{"name":"鹽","unit":"g","amount":4},{"name":"巴西里","unit":"g","amount":5}],"steps":["橄欖油爆香蒜末與辣椒片。","加蝦仁、透抽翻炒至半熟，加蛤蜊與白酒，蓋鍋至開口。","義大利麵煮熟，保留煮麵水。","麵條加入海鮮鍋，加煮麵水拌勻，撒巴西里。"]},{"name":"白酒蛤蜊義大利麵","time":"約 20 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利細麵","unit":"g","amount":400},{"name":"蛤蜊","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":20},{"name":"白酒","unit":"cc","amount":80},{"name":"橄欖油","unit":"cc","amount":30},{"name":"辣椒","unit":"根","amount":2},{"name":"巴西里","unit":"g","amount":5},{"name":"鹽","unit":"g","amount":3}],"steps":["橄欖油爆香蒜末與辣椒。","加蛤蜊與白酒，蓋鍋至全部開口，取出蛤蜊備用。","義大利麵煮熟，保留煮麵水。","麵條加入蛤蜊湯底翻拌，放回蛤蜊，撒巴西里。"]},{"name":"奶油鮮蝦義大利麵","time":"約 20 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"草蝦","unit":"g","amount":300},{"name":"奶油","unit":"g","amount":40},{"name":"鮮奶油","unit":"cc","amount":150},{"name":"蒜末","unit":"g","amount":15},{"name":"白酒","unit":"cc","amount":30},{"name":"起司粉","unit":"g","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"黑胡椒","unit":"g","amount":3}],"steps":["蝦剝殼，奶油爆香蒜末，加蝦炒至變色取出。","同鍋加白酒煮滾，加鮮奶油小火煮至略濃稠。","義大利麵煮熟加入醬汁翻拌。","放回蝦，加起司粉、鹽、黑胡椒調味。"]},{"name":"鮭魚奶油義大利麵","time":"約 25 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"鮭魚","unit":"g","amount":300},{"name":"奶油","unit":"g","amount":30},{"name":"鮮奶油","unit":"cc","amount":150},{"name":"洋蔥","unit":"g","amount":100},{"name":"白酒","unit":"cc","amount":30},{"name":"起司粉","unit":"g","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"黑胡椒","unit":"g","amount":3}],"steps":["鮭魚撒鹽黑胡椒，煎至兩面金黃後切塊備用。","奶油炒香洋蔥，加白酒與鮮奶油小火煮濃。","義大利麵煮熟加入醬汁翻拌。","放上鮭魚塊，撒起司粉即可。"]},{"name":"茄子番茄義大利麵","time":"約 25 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"茄子","unit":"g","amount":300},{"name":"番茄罐頭","unit":"g","amount":400},{"name":"蒜末","unit":"g","amount":15},{"name":"橄欖油","unit":"cc","amount":30},{"name":"鹽","unit":"g","amount":5},{"name":"黑胡椒","unit":"g","amount":3},{"name":"羅勒","unit":"g","amount":5}],"steps":["茄子切塊，橄欖油煎至金黃備用。","蒜末爆香，加番茄罐頭小火燉10分鐘。","加茄子、鹽調味，成茄子番茄醬。","義大利麵煮熟，拌入醬汁，撒羅勒與黑胡椒。"]},{"name":"蒜香橄欖油義大利麵","time":"約 15 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利細麵","unit":"g","amount":400},{"name":"蒜片","unit":"g","amount":30},{"name":"橄欖油","unit":"cc","amount":60},{"name":"辣椒片","unit":"g","amount":4},{"name":"巴西里","unit":"g","amount":8},{"name":"起司粉","unit":"g","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"黑胡椒","unit":"g","amount":3}],"steps":["義大利麵加鹽煮熟，保留1杯煮麵水。","橄欖油小火慢炒蒜片至金黃，加辣椒片。","加煮麵水與麵條大火翻拌乳化。","加巴西里、鹽、黑胡椒、起司粉拌勻即可。"]},{"name":"蘑菇奶油義大利麵","time":"約 20 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"蘑菇","unit":"g","amount":300},{"name":"洋蔥","unit":"g","amount":100},{"name":"奶油","unit":"g","amount":35},{"name":"鮮奶油","unit":"cc","amount":150},{"name":"白酒","unit":"cc","amount":30},{"name":"起司粉","unit":"g","amount":20},{"name":"鹽","unit":"g","amount":4},{"name":"黑胡椒","unit":"g","amount":3}],"steps":["奶油炒香洋蔥，加蘑菇炒至金黃出水。","加白酒煮滾，加鮮奶油小火煮至略濃稠。","義大利麵煮熟加入醬汁翻拌。","加起司粉、鹽、黑胡椒調味即可。"]},{"name":"明太子奶油義大利麵","time":"約 15 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利細麵","unit":"g","amount":400},{"name":"明太子","unit":"g","amount":120},{"name":"奶油","unit":"g","amount":30},{"name":"鮮奶油","unit":"cc","amount":100},{"name":"醬油","unit":"cc","amount":10},{"name":"海苔絲","unit":"g","amount":5},{"name":"蔥花","unit":"g","amount":15}],"steps":["明太子去膜取魚卵，與奶油、鮮奶油、醬油拌勻成醬。","義大利麵加鹽煮熟，保留少許煮麵水。","麵條趁熱加入明太子醬，加煮麵水拌勻。","撒海苔絲與蔥花即可。"]},{"name":"烤雞腿義大利麵","time":"約 35 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"雞腿肉","unit":"g","amount":400},{"name":"小番茄","unit":"g","amount":150},{"name":"青醬","unit":"g","amount":60},{"name":"橄欖油","unit":"cc","amount":25},{"name":"迷迭香","unit":"g","amount":3},{"name":"鹽","unit":"g","amount":5},{"name":"黑胡椒","unit":"g","amount":3}],"steps":["雞腿肉加鹽、黑胡椒、迷迭香醃15分鐘，煎至兩面金黃後切片。","小番茄橄欖油略炒備用。","義大利麵煮熟，加青醬與少許煮麵水拌勻。","麵條盛盤，鋪雞肉片與番茄即可。"]},{"name":"牛肉番茄燉義大利麵","time":"約 40 分鐘","tag":"義大利麵","ingredients":[{"name":"筆管麵","unit":"g","amount":400},{"name":"牛絞肉","unit":"g","amount":300},{"name":"番茄罐頭","unit":"g","amount":400},{"name":"洋蔥","unit":"g","amount":150},{"name":"紅蘿蔔","unit":"g","amount":80},{"name":"西芹","unit":"g","amount":60},{"name":"紅酒","unit":"cc","amount":80},{"name":"橄欖油","unit":"cc","amount":25},{"name":"鹽","unit":"g","amount":5},{"name":"黑胡椒","unit":"g","amount":3}],"steps":["洋蔥、紅蘿蔔、西芹切丁，橄欖油炒軟。","加牛絞肉炒熟，加紅酒煮滾收乾。","加番茄罐頭，小火燉25分鐘成波隆那肉醬。","筆管麵煮熟，淋上肉醬，撒黑胡椒即可。"]},{"name":"香腸番茄義大利麵","time":"約 25 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"義式香腸","unit":"g","amount":200},{"name":"番茄罐頭","unit":"g","amount":400},{"name":"洋蔥","unit":"g","amount":100},{"name":"蒜末","unit":"g","amount":15},{"name":"橄欖油","unit":"cc","amount":25},{"name":"辣椒片","unit":"g","amount":3},{"name":"鹽","unit":"g","amount":4},{"name":"黑胡椒","unit":"g","amount":3}],"steps":["香腸切片，橄欖油煎至兩面金黃後取出。","同鍋炒香洋蔥、蒜末、辣椒片。","加番茄罐頭燉10分鐘，放回香腸，加鹽調味。","義大利麵煮熟，拌入醬汁即可。"]},{"name":"照燒雞肉義大利麵","time":"約 25 分鐘","tag":"義大利麵","ingredients":[{"name":"義大利麵","unit":"g","amount":400},{"name":"雞腿肉","unit":"g","amount":350},{"name":"醬油","unit":"cc","amount":30},{"name":"味醂","unit":"cc","amount":25},{"name":"蜂蜜","unit":"g","amount":10},{"name":"奶油","unit":"g","amount":20},{"name":"蒜末","unit":"g","amount":10},{"name":"蔥花","unit":"g","amount":15}],"steps":["雞腿肉用醬油、味醂、蜂蜜醃15分鐘，煎至兩面金黃，切片備用。","奶油爆香蒜末，加剩餘醃料煮成照燒醬。","義大利麵煮熟，加少許奶油與煮麵水拌勻。","麵條盛盤，鋪雞肉，淋照燒醬，撒蔥花。"]}];
+
+const DAYS = ['週一','週二','週三','週四','週五'];
+
+// ── State ──────────────────────────────────────────
+let currentDayIdx = 0;
+let activeDishId = null;
+let customDishes = {};
+let currentMenus = [];
+let checkedIngredients = {};  // key: dayIdx_ingName -> bool
+let savedRecipes = JSON.parse(localStorage.getItem('savedRecipes') || '[]');
+
+// ── Init ───────────────────────────────────────────
+function randPick(arr, n) {
+  const copy = [...arr];
+  const result = [];
+  for (let i = 0; i < n && copy.length; i++) {
+    const idx = Math.floor(Math.random() * copy.length);
+    result.push(copy.splice(idx, 1)[0]);
+  }
+  return result;
+}
+
+function buildMenus() {
+  // 週四義大利麵：每月約1~2次，用隨機25%機率觸發
+  const isPastaThursday = Math.random() < 0.4;
+  return DAYS.map((day, i) => {
+    if(i === 2) { // 週三固定麵食日
+      const noodle = {...randPick(NOODLE_POOL,1)[0], id:`noodle_${i}_${Date.now()}`, isNoodle:true};
+      return {day, isNoodleDay:true, isPastaDay:false, dishes:[noodle]};
+    }
+    if(i === 3 && isPastaThursday) { // 週四義大利麵日（隨機）
+      const pasta = {...randPick(PASTA_POOL,1)[0], id:`pasta_${i}_${Date.now()}`, isPasta:true};
+      return {day, isNoodleDay:false, isPastaDay:true, dishes:[pasta]};
+    }
+    return {day, isNoodleDay:false, isPastaDay:false, dishes:[
+      {...randPick(DISH_POOL.meat,1)[0], id:`meat_${i}_${Date.now()}`, tag:'肉類', tagClass:'tag-meat'},
+      {...randPick(DISH_POOL.veg,1)[0],  id:`veg_${i}_${Date.now()}`,  tag:'蔬菜', tagClass:'tag-veg'},
+      {...randPick(DISH_POOL.egg,1)[0],  id:`egg_${i}_${Date.now()}`,  tag:'蛋類', tagClass:'tag-egg'},
+      {...randPick(DISH_POOL.soup,1)[0], id:`soup_${i}_${Date.now()}`, tag:'湯品', tagClass:'tag-soup'},
+    ]};
+  });
+}
+
+async function refreshMenu() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;animation:spin .7s linear infinite">↻</span> 生成中…';
+  customDishes = {};
+  checkedIngredients = {};
+  activeDishId = null;
+  document.getElementById('customPanel').className = 'panel';
+  document.getElementById('detailPanel').className = 'panel';
+  try {
+    const prompt = `你是台灣家庭料理專家。請為一家五口產生一週（週一到週五）的晚餐菜單。
+規則：
+- 週一、週二、週五：三菜一湯（肉類、蔬菜、蛋類各一道、湯品一道）
+- 週三固定麵食日：台式麵食主食一道（麵條、米粉、河粉、麵線等，不需配湯）
+- 週四義大利麵日（每月約1~2次，機率約40%）：義大利麵一道，否則三菜一湯
+- 風格多元：台灣家常、客家、台式熱炒、日式家庭、15分鐘快速料理
+- 同一週不重複使用相同主要食材，食材份量是3個成人份，每道菜60分鐘內完成
+- 烹飪步驟要詳細，包含醃料用量、火候大小、判斷熟度的方法
+- ingredients 每個項目加 category 欄位：醃料/醬汁/食材
+
+只回傳 JSON，不要任何其他文字：
+{"days":[
+  {"day":"週一","isNoodleDay":false,"isPastaDay":false,"dishes":[
+    {"name":"菜名","tag":"肉類","time":"約X分鐘",
+     "ingredients":[
+       {"name":"豬肉","unit":"g","amount":300,"category":"食材"},
+       {"name":"醬油","unit":"cc","amount":20,"category":"醃料"},
+       {"name":"蠔油","unit":"cc","amount":15,"category":"醬汁"}
+     ],
+     "steps":["詳細步驟1","詳細步驟2","詳細步驟3","詳細步驟4","詳細步驟5"]},
+    {"name":"蔬菜","tag":"蔬菜","time":"約X分鐘","ingredients":[{"name":"食材","unit":"g","amount":300,"category":"食材"}],"steps":["步驟1","步驟2","步驟3"]},
+    {"name":"蛋類","tag":"蛋類","time":"約X分鐘","ingredients":[{"name":"食材","unit":"g","amount":300,"category":"食材"}],"steps":["步驟1","步驟2","步驟3"]},
+    {"name":"湯品","tag":"湯品","time":"約X分鐘","ingredients":[{"name":"食材","unit":"g","amount":300,"category":"食材"}],"steps":["步驟1","步驟2","步驟3"]}
+  ]},
+  {"day":"週二","isNoodleDay":false,"isPastaDay":false,"dishes":[同週一格式]},
+  {"day":"週三","isNoodleDay":true,"isPastaDay":false,"dishes":[
+    {"name":"麵食名","tag":"麵食","time":"約X分鐘","ingredients":[{"name":"食材","unit":"g","amount":300,"category":"食材"}],"steps":["詳細步驟1","步驟2","步驟3","步驟4"]}
+  ]},
+  {"day":"週四","isNoodleDay":false,"isPastaDay":true或false,"dishes":[同格式]},
+  {"day":"週五","isNoodleDay":false,"isPastaDay":false,"dishes":[同週一格式]}
+]}`;
+
+// ── Tab ────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) =>
+    b.classList.toggle('active', ['menu','fridge','saved'][i] === tab));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  if (tab === 'saved') renderSaved();
+}
+
+// ── Days ───────────────────────────────────────────
+function renderDays() {
+  document.getElementById('dayStrip').innerHTML = DAYS.map((d,i) =>
+    `<button class="day-btn${i===currentDayIdx?' active':''}" onclick="setDay(${i})">${d}</button>`
+  ).join('');
+}
+
+function setDay(idx) {
+  currentDayIdx = idx;
+  activeDishId = null;
+  document.getElementById('customPanel').className = 'panel';
+  document.getElementById('detailPanel').className = 'panel';
+  renderDays();
+  renderMenu();
+}
+
+function getEffectiveDishes() {
+  return currentMenus[currentDayIdx].dishes.map((d,i) =>
+    customDishes[`${currentDayIdx}_${i}`] || d
+  );
+}
+
+// ── Menu ───────────────────────────────────────────
+function renderMenu() {
+  const isNoodleDay = currentMenus[currentDayIdx].isNoodleDay;
+  const isPastaDay  = currentMenus[currentDayIdx].isPastaDay;
+  const dishes = getEffectiveDishes();
+  if(isNoodleDay) {
+    const noodle = dishes[0];
+    const isNA = activeDishId === noodle.id;
+    document.getElementById('menuGrid').innerHTML = `
+      <div class="dish-card noodle-card${isNA?' active':''}" onclick="showDish('${noodle.id}',0)" style="grid-column:1/-1;min-height:80px">
+        <div class="dish-tag tag-noodle">🍜 週三麵食日</div>
+        <div class="dish-name" style="font-size:15px;margin-top:4px">${noodle.name}</div>
+        <div class="dish-time">${noodle.time}</div>
+      </div>`;
+  } else if(isPastaDay) {
+    const pasta = dishes[0];
+    const isPA = activeDishId === pasta.id;
+    document.getElementById('menuGrid').innerHTML = `
+      <div class="dish-card${isPA?' active':''}" onclick="showDish('${pasta.id}',0)" style="grid-column:1/-1;min-height:80px">
+        <div class="dish-tag tag-pasta">🍝 週四義大利麵</div>
+        <div class="dish-name" style="font-size:15px;margin-top:4px">${pasta.name}</div>
+        <div class="dish-time">${pasta.time}</div>
+      </div>`;
+  } else {
+    document.getElementById('menuGrid').innerHTML = dishes.map((d,i) => {
+      const isCustom = !!customDishes[`${currentDayIdx}_${i}`];
+      const isActive = activeDishId === d.id;
+      return `<div class="dish-card${isActive?' active':''}${isCustom?' has-custom':''}" onclick="showDish('${d.id}',${i})">
+        <div class="dish-tag ${d.tagClass}">${d.tag}</div>
+        <div class="dish-name">${d.name}</div>
+        <div class="dish-time">${d.time}</div>
+        <span class="edit-badge" onclick="openCustom(event,${i})">${isCustom?'修改':'自訂'}</span>
+      </div>`;
+    }).join('');
+  }
+  renderIngList();
+}
+
+// ── Custom dish ────────────────────────────────────
+function openCustom(e, slotIdx) {
+  e.stopPropagation();
+  activeDishId = null;
+  document.getElementById('detailPanel').className = 'panel';
+  const key = `${currentDayIdx}_${slotIdx}`;
+  const existing = customDishes[key];
+  const panel = document.getElementById('customPanel');
+  panel.innerHTML = `
+    <div class="panel-label">自訂「${SLOT_LABELS[slotIdx]}」<span>輸入菜名，由 AI 生成食譜</span></div>
+    <div class="input-row">
+      <input id="nameInput" type="text" placeholder="例如：蒜泥白肉、菜脯蛋…"
+        value="${existing?existing.name:''}" onkeydown="if(event.key==='Enter')doGenerate(${slotIdx})"/>
+      <button class="btn-accent" id="genBtn" onclick="doGenerate(${slotIdx})">
+        <div class="spinner" id="genSpinner"></div>
+        <span id="genTxt">生成</span>
+      </button>
+    </div>
+    <div class="err-msg" id="genErr"></div>
+    ${existing?`<div class="clear-link">目前：<strong>${existing.name}</strong>　<a onclick="clearCustom(${slotIdx})">恢復預設</a></div>`:''}
+  `;
+  panel.className = 'panel show';
+  setTimeout(()=>{ const el=document.getElementById('nameInput'); if(el) el.focus(); },100);
+}
+
+function clearCustom(slotIdx) {
+  delete customDishes[`${currentDayIdx}_${slotIdx}`];
+  document.getElementById('customPanel').className = 'panel';
+  activeDishId = null;
+  document.getElementById('detailPanel').className = 'panel';
+  renderMenu();
+}
+
+async function callClaude(prompt) {
+  const res = await fetch(WORKER_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:1500,
+      messages:[{role:'user',content:prompt}]
+    })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return data.content.map(c=>c.text||'').join('').trim();
+}
+
+async function doGenerate(slotIdx) {
+  const name = (document.getElementById('nameInput').value||'').trim();
+  if (!name) { document.getElementById('nameInput').focus(); return; }
+  const btn=document.getElementById('genBtn');
+  const sp=document.getElementById('genSpinner');
+  const txt=document.getElementById('genTxt');
+  const err=document.getElementById('genErr');
+  btn.disabled=true; sp.className='spinner show'; txt.textContent='生成中…'; err.className='err-msg';
+  const prompt=`你是台灣家庭料理專家。請為「${name}」生成一份適合一家五口（3個成人份）的食譜。
+只回傳 JSON，不要任何其他文字：
+{"name":"${name}","tag":"${SLOT_TAG_NAMES[slotIdx]}","time":"約 X 分鐘","ingredients":[{"name":"食材","unit":"g或cc或顆","amount":數字}],"steps":["步驟1","步驟2","步驟3","步驟4"]}
+規則：台灣菜市場容易買到的食材，備餐加烹飪在60分鐘內，份量已是3人份。`;
+  try {
+    const raw=await callClaude(prompt);
+    const clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    const m=clean.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('格式錯誤');
+    const r=JSON.parse(m[0]);
+    const dish={
+      id:`custom_${currentDayIdx}_${slotIdx}_${Date.now()}`,
+      name:r.name, tag:r.tag||SLOT_TAG_NAMES[slotIdx],
+      tagClass:TAG_MAP[r.tag]||SLOT_TAGS[slotIdx],
+      time:r.time||'約 20 分鐘',
+      ingredients:r.ingredients.map(i=>({name:i.name,unit:i.unit,base:i.amount,noScale:true})),
+      steps:r.steps, isAI:true
+    };
+    customDishes[`${currentDayIdx}_${slotIdx}`]=dish;
+    document.getElementById('customPanel').className='panel';
+    activeDishId=dish.id;
+    renderMenu();
+    renderDetail(dish);
+  } catch(e) {
+    err.textContent='生成失敗，請再試一次。（'+e.message+'）';
+    err.className='err-msg show';
+  } finally {
+    btn.disabled=false; sp.className='spinner'; txt.textContent='生成';
+  }
+}
+
+// ── Detail ─────────────────────────────────────────
+function showDish(dishId, slotIdx) {
+  document.getElementById('customPanel').className='panel';
+  if (activeDishId===dishId) {
+    activeDishId=null;
+    document.getElementById('detailPanel').className='panel';
+    renderMenu(); return;
+  }
+  activeDishId=dishId;
+  const dish=getEffectiveDishes()[slotIdx];
+  renderMenu();
+  renderDetail(dish);
+  setTimeout(()=>document.getElementById('detailPanel').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+function buildIngSection(ings, scale) {
+  // Group ingredients by category
+  const groups = {'食材':[], '醃料':[], '醬汁':[], '其他':[]};
+  ings.forEach(ing => {
+    const base = ing.base??ing.amount??0;
+    const amt = ing.noScale ? base : Math.round(base * scale);
+    const cat = ing.category || '食材';
+    const key = ['食材','醃料','醬汁'].includes(cat) ? cat : '食材';
+    groups[key].push({...ing, displayAmt: amt});
+  });
+  let html = '';
+  const labels = {'食材':'🥬 食材','醃料':'🧂 醃料','醬汁':'🫙 醬汁'};
+  ['食材','醃料','醬汁'].forEach(cat => {
+    if (!groups[cat].length) return;
+    html += `<div class="ing-cat-label">${labels[cat]}</div>`;
+    html += groups[cat].map(ing =>
+      `<div class="ing-row"><span>${ing.name}</span><span class="ing-amt">${ing.displayAmt} ${ing.unit}</span></div>`
+    ).join('');
+  });
+  return html || ings.map(ing => {
+    const base = ing.base??ing.amount??0;
+    const amt = ing.noScale ? base : Math.round(base * SCALE);
+    return `<div class="ing-row"><span>${ing.name}</span><span class="ing-amt">${amt} ${ing.unit}</span></div>`;
+  }).join('');
+}
+
+function renderDetail(dish) {
+  const panel=document.getElementById('detailPanel');
+  if (!dish) { panel.className='panel'; return; }
+  const isSaved=savedRecipes.some(r=>r.name===dish.name);
+  const ings = buildIngSection(dish.ingredients, SCALE);
+  const steps=dish.steps.map((s,i)=>
+    `<li><span class="step-num">${i+1}</span><span>${s}</span></li>`
+  ).join('');
+  const aiBadge=dish.isAI?`<span class="ai-badge">AI 生成</span>`:'';
+  panel.className='panel show';
+  panel.innerHTML=`
+    <div class="detail-header">
+      <span class="detail-title">${dish.name}</span>
+      ${aiBadge}
+      <span class="detail-time">${dish.time}</span>
+    </div>
+    <div class="section-label">備料清單（5 人份）</div>
+    ${ings}
+    <div class="section-label">烹飪步驟</div>
+    <ul class="steps-list">${steps}</ul>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button class="btn-save${isSaved?' saved':''}" id="saveBtn" onclick="toggleSave(${JSON.stringify(dish).replace(/"/g,'&quot;')})">
+        ${isSaved?'✓ 已收藏':'☆ 收藏食譜'}
+      </button>
+    </div>`;
+}
+
+// ── Ingredient checklist ───────────────────────────
+function renderIngList() {
+  const card=document.getElementById('ingListCard');
+  const isNoodleDay = currentMenus[currentDayIdx].isNoodleDay;
+  const isPastaDay  = currentMenus[currentDayIdx].isPastaDay;
+  const allIng={};
+  getEffectiveDishes().forEach(dish=>{
+    dish.ingredients.forEach(ing=>{
+      const base=ing.base??ing.amount??0;
+      const amt=ing.noScale?base:Math.round(base*SCALE);
+      const key=ing.name;
+      if (allIng[key]) { if(!ing.noScale) allIng[key].amt+=amt; }
+      else allIng[key]={amt,unit:ing.unit};
+    });
+  });
+
+  const rows=Object.entries(allIng).map(([name,v])=>{
+    const ck=checkedIngredients[`${currentDayIdx}_${name}`]||false;
+    return `<div class="ing-check-row${ck?' have':''}" onclick="toggleIng('${name.replace(/'/g,"\\'")}')">
+      <div class="ing-checkbox${ck?' checked':''}"></div>
+      <span class="ing-check-name">${name}</span>
+      <span class="ing-check-amt">${v.amt} ${v.unit}</span>
+      ${!ck?`<span class="need-buy-badge">需採購</span>`:''}
+    </div>`;
+  }).join('');
+
+  const needCount=Object.entries(allIng).filter(([name])=>
+    !checkedIngredients[`${currentDayIdx}_${name}`]
+  ).length;
+
+  card.style.display='block';
+  card.innerHTML=`
+    <div class="ing-list-header">
+      <span class="ing-list-title">今日食材需求清單</span>
+      <span class="ing-list-hint">還需採購 ${needCount} 項</span>
+    </div>
+    ${rows}
+    <div style="margin-top:10px;display:flex;gap:8px;">
+      <button class="btn-outline" onclick="clearChecked()" style="font-size:11px;">清除勾選</button>
+    </div>`;
+}
+
+function toggleIng(name) {
+  const key=`${currentDayIdx}_${name}`;
+  checkedIngredients[key]=!checkedIngredients[key];
+  renderIngList();
+}
+
+function clearChecked() {
+  Object.keys(checkedIngredients).forEach(k=>{
+    if(k.startsWith(`${currentDayIdx}_`)) delete checkedIngredients[k];
+  });
+  renderIngList();
+}
+
+// ── Save recipe ────────────────────────────────────
+function toggleSave(dish) {
+  const idx=savedRecipes.findIndex(r=>r.name===dish.name);
+  if (idx>=0) {
+    savedRecipes.splice(idx,1);
+  } else {
+    savedRecipes.unshift({...dish, savedAt: new Date().toLocaleDateString('zh-TW')});
+  }
+  localStorage.setItem('savedRecipes', JSON.stringify(savedRecipes));
+  if (activeDishId) {
+    const slotIdx=getEffectiveDishes().findIndex(d=>d.id===activeDishId);
+    if (slotIdx>=0) renderDetail(getEffectiveDishes()[slotIdx]);
+  }
+}
+
+function renderSaved() {
+  const list=document.getElementById('savedList');
+  if (!savedRecipes.length) {
+    list.innerHTML=`<div class="saved-empty">還沒有收藏任何食譜<br>在食譜下方點「☆ 收藏食譜」即可儲存<br>下次打開還會在這裡</div>`;
+    return;
+  }
+  list.innerHTML=savedRecipes.map((dish,i)=>{
+    const ings=dish.ingredients.map(ing=>
+      `<div class="ing-row"><span>${ing.name}</span><span class="ing-amt">${ing.base??ing.amount??''} ${ing.unit}</span></div>`
+    ).join('');
+    const steps=dish.steps.map((s,si)=>
+      `<li><span class="step-num">${si+1}</span><span>${s}</span></li>`
+    ).join('');
+    return `<div class="saved-card">
+      <div class="saved-card-header" onclick="toggleSavedBody(${i})">
+        <span class="saved-card-title">${dish.name}</span>
+        <span class="saved-card-tag ${dish.tagClass||'tag-meat'}">${dish.tag||''}</span>
+        <span class="saved-card-time">${dish.savedAt||''}</span>
+        <span class="saved-expand" id="expand-${i}">▼</span>
+      </div>
+      <div class="saved-card-body" id="body-${i}">
+        <div class="section-label">備料清單</div>
+        ${ings}
+        <div class="section-label">烹飪步驟</div>
+        <ul class="steps-list">${steps}</ul>
+        <div class="saved-actions">
+          <button class="btn-delete" onclick="deleteSaved(${i})">刪除收藏</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleSavedBody(i) {
+  const body=document.getElementById(`body-${i}`);
+  const arrow=document.getElementById(`expand-${i}`);
+  const isShow=body.classList.contains('show');
+  body.classList.toggle('show',!isShow);
+  arrow.textContent=isShow?'▼':'▲';
+}
+
+function deleteSaved(i) {
+  savedRecipes.splice(i,1);
+  localStorage.setItem('savedRecipes', JSON.stringify(savedRecipes));
+  renderSaved();
+}
+
+// ── Fridge ─────────────────────────────────────────
+async function analyzeFridge() {
+  const input=document.getElementById('fridgeInput').value.trim();
+  if (!input) { document.getElementById('fridgeInput').focus(); return; }
+  const btn=document.getElementById('fridgeBtn');
+  const sp=document.getElementById('fridgeSpinner');
+  const txt=document.getElementById('fridgeBtnText');
+  const err=document.getElementById('fridgeErr');
+  const result=document.getElementById('fridgeResult');
+  btn.disabled=true; sp.className='spinner show'; txt.textContent='分析中…';
+  err.className='err-msg'; result.className='fridge-result';
+  const prompt=`你是台灣家庭料理專家。根據以下冰箱食材，為一家五口推薦 3-4 道適合今晚做的菜（包含一道湯）。
+冰箱食材：${input}
+請回傳 JSON 格式，不要其他文字：
+{"dishes":[{"name":"菜名","description":"簡短說明用了哪些食材，口味如何","missing":"還需要買什麼（若不需要則填空字串）","tag":"肉類或蔬菜或蛋類或湯品"}]}
+要求：優先使用冰箱既有食材，不足的食材盡量少，適合台灣家常口味，60分鐘內可完成。`;
+  try {
+    const raw=await callClaude(prompt);
+    const clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    const m=clean.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('格式錯誤');
+    const data=JSON.parse(m[0]);
+    result.className='fridge-result show';
+    result.innerHTML=`
+      <div class="panel-label" style="margin-bottom:12px;">根據你的食材，推薦這幾道：</div>
+      ${data.dishes.map(d=>`
+        <div class="fridge-dish-card" onclick="getFridgeRecipe('${d.name.replace(/'/g,"\\'")}')">
+          <div class="fridge-dish-badge">${d.tag}</div>
+          <div class="fridge-dish-name">${d.name}</div>
+          <div class="fridge-dish-desc">${d.description}</div>
+          ${d.missing?`<div style="font-size:11px;color:var(--accent);margin-top:6px;">需補買：${d.missing}</div>`:''}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">點擊查看完整食譜 →</div>
+        </div>
+      `).join('')}`;
+  } catch(e) {
+    err.textContent='分析失敗，請再試一次。（'+e.message+'）';
+    err.className='err-msg show';
+  } finally {
+    btn.disabled=false; sp.className='spinner'; txt.textContent='幫我想菜色';
+  }
+}
+
+async function getFridgeRecipe(dishName) {
+  const overlay=document.getElementById('loadingOverlay');
+  const loadingText=document.getElementById('loadingText');
+  overlay.className='loading-overlay show';
+  loadingText.textContent=`生成「${dishName}」食譜中…`;
+  const prompt=`你是台灣家庭料理專家。請為「${dishName}」生成一份適合一家五口（3個成人份）的詳細食譜。
+只回傳 JSON，不要其他文字：
+{"name":"${dishName}","tag":"肉類或蔬菜或蛋類或湯品","time":"約 X 分鐘","ingredients":[{"name":"食材","unit":"g或cc或顆","amount":數字}],"steps":["步驟1","步驟2","步驟3","步驟4"]}`;
+  try {
+    const raw=await callClaude(prompt);
+    const clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    const m=clean.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('格式錯誤');
+    const r=JSON.parse(m[0]);
+    const dish={
+      id:`fridge_${Date.now()}`,
+      name:r.name, tag:r.tag,
+      tagClass:TAG_MAP[r.tag]||'tag-meat',
+      time:r.time||'約 20 分鐘',
+      ingredients:r.ingredients.map(i=>({name:i.name,unit:i.unit,base:i.amount,noScale:true})),
+      steps:r.steps, isAI:true
+    };
+    overlay.className='loading-overlay';
+    showFridgeRecipePanel(dish);
+  } catch(e) {
+    overlay.className='loading-overlay';
+    alert('食譜生成失敗：'+e.message);
+  }
+}
+
+function showFridgeRecipePanel(dish) {
+  const result=document.getElementById('fridgeResult');
+  const isSaved=savedRecipes.some(r=>r.name===dish.name);
+  const ings=buildIngSection(dish.ingredients, 1);
+  const steps=dish.steps.map((s,i)=>
+    `<li><span class="step-num">${i+1}</span><span>${s}</span></li>`
+  ).join('');
+  const recipeDiv=document.createElement('div');
+  recipeDiv.className='panel show';
+  recipeDiv.style.marginTop='14px';
+  recipeDiv.innerHTML=`
+    <div class="detail-header">
+      <span class="detail-title">${dish.name}</span>
+      <span class="ai-badge">AI 生成</span>
+      <span class="detail-time">${dish.time}</span>
+    </div>
+    <div class="section-label">備料清單（5 人份）</div>
+    ${ings}
+    <div class="section-label">烹飪步驟</div>
+    <ul class="steps-list">${steps}</ul>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button class="btn-save${isSaved?' saved':''}" onclick="toggleSaveFridge(this,${JSON.stringify(dish).replace(/"/g,'&quot;')})">
+        ${isSaved?'✓ 已收藏':'☆ 收藏食譜'}
+      </button>
+      <button class="btn-outline" onclick="this.closest('.panel').remove()">收起</button>
+    </div>`;
+  result.appendChild(recipeDiv);
+  setTimeout(()=>recipeDiv.scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+function toggleSaveFridge(btn, dish) {
+  const idx=savedRecipes.findIndex(r=>r.name===dish.name);
+  if (idx>=0) {
+    savedRecipes.splice(idx,1);
+    btn.textContent='☆ 收藏食譜';
+    btn.classList.remove('saved');
+  } else {
+    savedRecipes.unshift({...dish, savedAt:new Date().toLocaleDateString('zh-TW')});
+    btn.textContent='✓ 已收藏';
+    btn.classList.add('saved');
+  }
+  localStorage.setItem('savedRecipes', JSON.stringify(savedRecipes));
+}
+
+// ── Start ──────────────────────────────────────────
+currentMenus = buildMenus();
+renderDays();
+renderMenu();
+</script>
+</body>
+</html>
