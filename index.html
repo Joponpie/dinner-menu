@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="晚餐助手">
+<meta name="theme-color" content="#c17d3c">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>晚餐助手</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#faf9f6;--surface:#fff;--border:#e8e4dc;--border-hover:#c8c3b8;
+  --text-primary:#1a1814;--text-secondary:#6b6760;--text-muted:#9e9a94;
+  --accent:#c17d3c;--accent-light:#f5ede0;--accent-dark:#8f5a28;
+  --green-bg:#edf5ec;--green-text:#2a6b38;
+  --amber-bg:#fdf3e3;--amber-text:#8f5a28;
+  --blue-bg:#edf4fb;--blue-text:#1e5f9e;
+  --purple-bg:#f0eefb;--purple-text:#4a3b9e;
+  --red-bg:#fdf0f0;--red-text:#9e2a2a;
+  --gold-bg:#fffbea;--gold-text:#92620a;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --r-sm:6px;--r-md:10px;--r-lg:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text-primary);padding-bottom:calc(60px + var(--safe-bottom))}
+
+.page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:calc(12px + var(--safe-top)) 16px 0;position:sticky;top:0;z-index:20}
+.header-row{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px}
+.page-header h1{font-family:'Noto Serif TC',serif;font-size:18px;font-weight:600}
+.tab-bar{display:flex;border-bottom:1px solid var(--border)}
+.tab-btn{flex:1;padding:10px 0;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:none;border:none;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+
+.page{display:none;padding:16px}
+.page.active{display:block}
+
+/* Day strip */
+.day-row{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.day-strip{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1}
+.day-strip::-webkit-scrollbar{display:none}
+.day-btn{padding:6px 14px;font-size:13px;font-family:'Noto Sans TC',sans-serif;border:1px solid var(--border);border-radius:20px;background:var(--surface);color:var(--text-secondary);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.day-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:500}
+.refresh-btn{flex-shrink:0;padding:6px 12px;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:var(--accent-light);border:1px solid #e8c8a0;border-radius:20px;color:var(--accent-dark);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.refresh-btn:active{opacity:.8}
+.refresh-icon{font-size:13px}
+
+/* Menu grid */
+.menu-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.dish-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;cursor:pointer;position:relative;min-height:95px;display:flex;flex-direction:column;gap:5px}
+.dish-card:active{opacity:.8}
+.dish-card.active{border:2px solid var(--accent);background:#fffaf5}
+.dish-tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;align-self:flex-start}
+.tag-meat{background:#fdeee6;color:#993C1D}
+.tag-veg{background:var(--green-bg);color:var(--green-text)}
+.tag-soup{background:var(--blue-bg);color:var(--blue-text)}
+.tag-egg{background:var(--amber-bg);color:var(--amber-text)}
+.dish-name{font-size:13px;font-weight:500;color:var(--text-primary);line-height:1.4}
+.dish-time{font-size:11px;color:var(--text-muted);margin-top:auto}
+.edit-badge{position:absolute;top:8px;right:8px;font-size:10px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);padding:2px 6px;cursor:pointer}
+
+/* Panels */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:14px;display:none}
+.panel.show{display:block}
+.panel-label{font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:10px}
+.panel-label span{font-size:12px;color:var(--text-muted);font-weight:400}
+
+/* Inputs */
+.input-row{display:flex;gap:8px;align-items:center}
+.input-row input,.big-input{width:100%;padding:10px 12px;font-size:14px;font-family:'Noto Sans TC',sans-serif;border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg);color:var(--text-primary);outline:none;-webkit-appearance:none}
+.input-row input:focus,.big-input:focus{border-color:var(--accent)}
+.big-input{min-height:100px;resize:none;line-height:1.6}
+
+/* Buttons */
+.btn-accent{padding:10px 16px;font-size:13px;font-family:'Noto Sans TC',sans-serif;font-weight:500;background:var(--accent);color:#fff;border:none;border-radius:var(--r-md);cursor:pointer;display:flex;align-items:center;gap:6px;justify-content:center;white-space:nowrap}
+.btn-accent:disabled{opacity:.5}
+.btn-accent.full{width:100%;margin-top:10px;padding:12px;font-size:14px}
+.btn-outline{padding:8px 14px;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:none;border:1px solid var(--border);border-radius:var(--r-md);color:var(--text-secondary);cursor:pointer}
+.btn-save{padding:7px 12px;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:var(--gold-bg);border:1px solid #e6c97a;border-radius:var(--r-md);color:var(--gold-text);cursor:pointer;font-weight:500}
+.btn-save.saved{background:#e8f5e9;color:#2a6b38;border-color:#a5d6a7}
+.spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.spinner.show{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Detail */
+.detail-header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.detail-title{font-family:'Noto Serif TC',serif;font-size:16px;font-weight:600;flex:1}
+.detail-time{font-size:11px;color:var(--text-muted);background:var(--bg);padding:3px 8px;border-radius:20px;border:1px solid var(--border)}
+.ai-badge{font-size:10px;background:var(--purple-bg);color:var(--purple-text);padding:2px 8px;border-radius:20px;font-weight:500}
+.section-label{font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;margin-top:14px}
+.section-label:first-child{margin-top:0}
+.ing-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+.ing-row:last-child{border-bottom:none}
+.ing-amt{color:var(--text-secondary)}
+.steps-list{list-style:none}
+.steps-list li{display:flex;gap:8px;font-size:13px;line-height:1.6;margin-bottom:8px}
+.step-num{min-width:20px;height:20px;background:var(--accent-light);color:var(--accent-dark);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;margin-top:2px;flex-shrink:0}
+
+/* Ingredient checklist */
+.ing-list-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:14px}
+.ing-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ing-list-title{font-size:13px;font-weight:500;color:var(--text-primary)}
+.ing-list-hint{font-size:11px;color:var(--text-muted)}
+.ing-check-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.ing-check-row:last-child{border-bottom:none}
+.ing-check-row.have .ing-check-name{color:var(--text-muted);text-decoration:line-through}
+.ing-check-row.have .ing-check-amt{color:var(--text-muted)}
+.ing-checkbox{width:18px;height:18px;border:1.5px solid var(--border-hover);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface);transition:all .15s}
+.ing-checkbox.checked{background:var(--green-text);border-color:var(--green-text)}
+.ing-checkbox.checked::after{content:'✓';color:#fff;font-size:11px;font-weight:700}
+.ing-check-name{font-size:13px;color:var(--text-primary);flex:1}
+.ing-check-amt{font-size:12px;color:var(--text-secondary);white-space:nowrap}
+.need-buy-badge{font-size:10px;background:#fff3e0;color:#e65100;padding:2px 6px;border-radius:20px;white-space:nowrap}
+
+/* Error */
+.err-msg{font-size:12px;color:var(--red-text);background:var(--red-bg);padding:8px 12px;border-radius:var(--r-md);margin-top:8px;display:none}
+.err-msg.show{display:block}
+.clear-link{font-size:12px;color:var(--text-muted);margin-top:8px}
+.clear-link a{color:var(--accent);text-decoration:underline;cursor:pointer}
+
+/* Fridge */
+.fridge-result{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-top:14px;display:none}
+.fridge-result.show{display:block}
+.fridge-dish-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;margin-bottom:10px;cursor:pointer}
+.fridge-dish-card:active{opacity:.8}
+.fridge-dish-name{font-size:14px;font-weight:500;margin-bottom:4px}
+.fridge-dish-desc{font-size:12px;color:var(--text-secondary);line-height:1.5}
+.fridge-dish-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;margin-bottom:6px;background:var(--green-bg);color:var(--green-text);font-weight:500}
+
+/* Saved */
+.saved-empty{text-align:center;padding:48px 20px;color:var(--text-muted);font-size:14px;line-height:2.2}
+.saved-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:12px}
+.saved-card-header{display:flex;align-items:center;gap:8px;cursor:pointer}
+.saved-card-title{font-family:'Noto Serif TC',serif;font-size:15px;font-weight:600;flex:1}
+.saved-card-tag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.saved-card-time{font-size:11px;color:var(--text-muted)}
+.saved-expand{font-size:12px;color:var(--text-muted);margin-left:auto}
+.saved-card-body{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.saved-card-body.show{display:block}
+.saved-actions{display:flex;gap:8px;margin-top:12px}
+.btn-delete{padding:7px 12px;font-size:12px;font-family:'Noto Sans TC',sans-serif;background:var(--red-bg);border:1px solid #f5c0c0;border-radius:var(--r-md);color:var(--red-text);cursor:pointer}
+
+/* Loading */
+.loading-overlay{position:fixed;inset:0;background:rgba(250,249,246,.92);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+.loading-overlay.show{display:flex}
+.loading-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+.loading-text{font-size:14px;color:var(--text-secondary)}
+
+.footer-note{font-size:11px;color:var(--text-muted);padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="header-row">
+    <h1>晚餐助手</h1>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('menu')">本週菜單</button>
+    <button class="tab-btn" onclick="switchTab('fridge')">冰箱食材</button>
+    <button class="tab-btn" onclick="switchTab('saved')">收藏食譜</button>
+  </div>
+</div>
+
+<!-- 本週菜單 -->
+<div class="page active" id="page-menu">
+  <div class="day-row">
+    <div class="day-strip" id="dayStrip"></div>
+    <button class="refresh-btn" onclick="refreshMenu()" id="refreshBtn">
+      <span class="refresh-icon">↻</span>換菜單
+    </button>
+  </div>
+  <div class="menu-grid" id="menuGrid"></div>
+  <div class="panel" id="customPanel"></div>
+  <div class="panel" id="detailPanel"></div>
+  <div class="ing-list-card" id="ingListCard" style="display:none;"></div>
+  <div class="footer-note">點選菜色卡片查看食譜，右上角「自訂」可更換菜色，「↻ 換菜單」隨機產生新菜色。</div>
+</div>
+
+<!-- 冰箱食材 -->
+<div class="page" id="page-fridge">
+  <div class="panel show">
+    <div class="panel-label">冰箱有什麼？<span>輸入食材，幫你想菜色</span></div>
+    <textarea class="big-input" id="fridgeInput" placeholder="例如：豬肉、豆腐、青江菜、雞蛋、番茄、洋蔥…&#10;&#10;不用格式，隨便打就好！"></textarea>
+    <button class="btn-accent full" id="fridgeBtn" onclick="analyzeFridge()">
+      <div class="spinner" id="fridgeSpinner"></div>
+      <span id="fridgeBtnText">幫我想菜色</span>
+    </button>
+    <div class="err-msg" id="fridgeErr"></div>
+  </div>
+  <div class="fridge-result" id="fridgeResult"></div>
+</div>
+
+<!-- 收藏食譜 -->
+<div class="page" id="page-saved">
+  <div id="savedList"></div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">生成中...</div>
+</div>
+
+<script>
+const WORKER_URL = 'https://dinner.pon76124.workers.dev';
+const SCALE = 3.0;
+const SLOT_LABELS = ['肉類','蔬菜','蛋類/豆腐','湯品'];
+const SLOT_TAG_NAMES = ['肉類','蔬菜','蛋類','湯品'];
+const SLOT_TAGS = ['tag-meat','tag-veg','tag-egg','tag-soup'];
+const TAG_MAP = {'肉類':'tag-meat','蔬菜':'tag-veg','蛋類':'tag-egg','湯品':'tag-soup'};
+
+// ── 預設菜庫 ──────────────────────────────────────
+const DISH_POOL = {
+  meat:[
+    {name:'薑絲炒肉絲',time:'約 20 分鐘',ingredients:[{name:'豬肉絲',unit:'g',base:150},{name:'薑絲',unit:'g',base:20},{name:'醬油',unit:'cc',base:15},{name:'米酒',unit:'cc',base:10},{name:'太白粉',unit:'g',base:5},{name:'沙拉油',unit:'cc',base:15},{name:'鹽',unit:'g',base:2}],steps:['豬肉絲加醬油、米酒、太白粉醃 10 分鐘。','起鍋熱油，先爆香薑絲至微焦香。','放入醃好的肉絲，大火快炒至變色。','加鹽調味，翻炒均勻即可起鍋。']},
+    {name:'洋蔥炒豬排',time:'約 20 分鐘',ingredients:[{name:'薄切豬排',unit:'g',base:300},{name:'洋蔥',unit:'g',base:150},{name:'醬油',unit:'cc',base:20},{name:'味醂',unit:'cc',base:10},{name:'糖',unit:'g',base:5},{name:'沙拉油',unit:'cc',base:15}],steps:['豬排用醬油、味醂、糖醃 10 分鐘。','洋蔥切絲，熱油先炒至半透明。','放入豬排大火煎至兩面金黃。','倒入剩餘醃料炒勻，燒至收汁。']},
+    {name:'三杯雞',time:'約 25 分鐘',ingredients:[{name:'雞腿肉',unit:'g',base:400},{name:'九層塔',unit:'g',base:15},{name:'薑片',unit:'g',base:15},{name:'蒜頭',unit:'g',base:20},{name:'醬油',unit:'cc',base:30},{name:'米酒',unit:'cc',base:30},{name:'麻油',unit:'cc',base:20},{name:'糖',unit:'g',base:10}],steps:['雞腿肉切塊，麻油入鍋爆香薑片至微焦。','加蒜頭炒香，放雞肉大火翻炒至表面上色。','加醬油、米酒、糖，蓋鍋小火燜煮 10 分鐘。','開大火收汁，起鍋前放九層塔翻炒均勻。']},
+    {name:'清蒸魚',time:'約 20 分鐘',ingredients:[{name:'鱸魚或吳郭魚',unit:'g',base:500},{name:'薑絲',unit:'g',base:15},{name:'蔥絲',unit:'g',base:15},{name:'醬油',unit:'cc',base:30},{name:'沙拉油',unit:'cc',base:20},{name:'鹽',unit:'g',base:3}],steps:['魚身兩側劃刀，抹上薄鹽靜置 5 分鐘。','魚肚塞入薑片，放入電鍋外鍋 1 杯水蒸。','蒸熟後倒掉多餘湯汁，鋪上薑絲蔥絲。','淋上熱油與醬油，即可上桌。']},
+    {name:'宮保雞丁',time:'約 25 分鐘',ingredients:[{name:'雞胸肉',unit:'g',base:300},{name:'花生',unit:'g',base:50},{name:'乾辣椒',unit:'g',base:5},{name:'蔥段',unit:'g',base:20},{name:'醬油',unit:'cc',base:20},{name:'烏醋',unit:'cc',base:10},{name:'糖',unit:'g',base:8},{name:'太白粉',unit:'g',base:8},{name:'沙拉油',unit:'cc',base:20}],steps:['雞胸切丁，加醬油、太白粉醃 10 分鐘。','調醬汁：醬油+烏醋+糖+少許水拌勻。','熱鍋爆香乾辣椒與蔥段後，放雞丁炒熟。','倒入醬汁、花生大火翻炒均勻即可。']},
+    {name:'糖醋排骨',time:'約 30 分鐘',ingredients:[{name:'小排骨',unit:'g',base:400},{name:'醬油',unit:'cc',base:25},{name:'白醋',unit:'cc',base:30},{name:'糖',unit:'g',base:30},{name:'番茄醬',unit:'cc',base:30},{name:'太白粉',unit:'g',base:20},{name:'沙拉油',unit:'cc',base:200}],steps:['排骨汆燙後拍乾，裹上太白粉靜置 5 分鐘。','熱油鍋（約 180°C），排骨炸至金黃後撈起。','另起鍋，醬油+醋+糖+番茄醬加少許水煮滾。','放入排骨大火翻炒至醬汁收裹均勻即可。']},
+    {name:'滷豬五花',time:'約 45 分鐘',ingredients:[{name:'豬五花肉',unit:'g',base:400},{name:'醬油',unit:'cc',base:60},{name:'米酒',unit:'cc',base:30},{name:'糖',unit:'g',base:15},{name:'蔥段',unit:'g',base:20},{name:'薑片',unit:'g',base:15},{name:'八角',unit:'顆',base:2,noScale:true},{name:'水',unit:'cc',base:400}],steps:['五花肉切大塊，汆燙後洗淨備用。','鍋中放少許油，將肉塊煎至表面上色。','加入所有調料與水，大火燒開後轉小火。','蓋鍋燜煮 40 分鐘至軟爛入味即可。']}
+  ],
+  veg:[
+    {name:'蒜炒菠菜',time:'約 10 分鐘',ingredients:[{name:'菠菜',unit:'g',base:300},{name:'蒜末',unit:'g',base:10},{name:'沙拉油',unit:'cc',base:15},{name:'鹽',unit:'g',base:3}],steps:['菠菜洗淨切段，備用。','起鍋熱油，爆香蒜末至微黃。','放入菠菜大火翻炒約 2 分鐘。','加鹽調味，快速翻炒後起鍋。']},
+    {name:'手撕高麗菜',time:'約 10 分鐘',ingredients:[{name:'高麗菜',unit:'g',base:350},{name:'蒜末',unit:'g',base:10},{name:'辣椒',unit:'根',base:1,noScale:true},{name:'鹽',unit:'g',base:3},{name:'醬油',unit:'cc',base:10},{name:'沙拉油',unit:'cc',base:15}],steps:['高麗菜用手撕成大片，洗淨備用。','起鍋熱油，爆香蒜末與辣椒段。','放入高麗菜大火翻炒至葉片軟化。','加鹽、醬油調味，快炒後起鍋。']},
+    {name:'清炒空心菜',time:'約 10 分鐘',ingredients:[{name:'空心菜',unit:'g',base:300},{name:'蒜末',unit:'g',base:10},{name:'鹽',unit:'g',base:3},{name:'沙拉油',unit:'cc',base:15}],steps:['空心菜摘洗乾淨，切段。','起鍋熱油，爆香蒜末。','大火放入空心菜快速翻炒。','加鹽調味，炒至葉片軟化即可。']},
+    {name:'炒青江菜',time:'約 10 分鐘',ingredients:[{name:'青江菜',unit:'g',base:300},{name:'蒜末',unit:'g',base:10},{name:'鹽',unit:'g',base:3},{name:'沙拉油',unit:'cc',base:15}],steps:['青江菜洗淨對半切，備用。','起鍋熱油，爆香蒜末。','放入青江菜大火翻炒。','加鹽調味，炒軟後起鍋。']},
+    {name:'紅燒茄子',time:'約 15 分鐘',ingredients:[{name:'茄子',unit:'g',base:300},{name:'蒜末',unit:'g',base:10},{name:'醬油',unit:'cc',base:20},{name:'糖',unit:'g',base:5},{name:'沙拉油',unit:'cc',base:25},{name:'水',unit:'cc',base:50}],steps:['茄子切滾刀塊，泡鹽水 5 分鐘避免變黑。','熱鍋下較多油，茄子煎至軟化後撈起。','爆香蒜末，放回茄子加醬油、糖、水翻炒。','燒至湯汁略收、入味即可起鍋。']},
+    {name:'清炒花椰菜',time:'約 10 分鐘',ingredients:[{name:'花椰菜',unit:'g',base:350},{name:'蒜末',unit:'g',base:10},{name:'鹽',unit:'g',base:3},{name:'沙拉油',unit:'cc',base:15}],steps:['花椰菜切小朵，用鹽水泡 5 分鐘後洗淨。','滾水汆燙 1 分鐘後撈起備用。','起鍋熱油，爆香蒜末。','放入花椰菜翻炒，加鹽調味即可。']},
+    {name:'炒四季豆',time:'約 15 分鐘',ingredients:[{name:'四季豆',unit:'g',base:250},{name:'蒜末',unit:'g',base:10},{name:'豬絞肉',unit:'g',base:80},{name:'鹽',unit:'g',base:3},{name:'醬油',unit:'cc',base:10},{name:'沙拉油',unit:'cc',base:15}],steps:['四季豆去頭尾與老絲，切成約 5 公分段。','起鍋熱油，先炒絞肉至熟後推到一旁。','放入四季豆大火翻炒至表皮起皺。','加蒜末、鹽、醬油炒勻即可。']}
+  ],
+  egg:[
+    {name:'番茄炒蛋',time:'約 15 分鐘',ingredients:[{name:'雞蛋',unit:'顆',base:3,noScale:true},{name:'番茄',unit:'g',base:250},{name:'糖',unit:'g',base:5},{name:'鹽',unit:'g',base:3},{name:'沙拉油',unit:'cc',base:20}],steps:['雞蛋打散加少許鹽，番茄切塊。','熱鍋下油，炒蛋至半熟後盛起。','同鍋再加油，放番茄炒出湯汁。','加糖、鹽，倒回蛋翻炒均勻。']},
+    {name:'蒸蛋',time:'約 20 分鐘',ingredients:[{name:'雞蛋',unit:'顆',base:3,noScale:true},{name:'高湯或水',unit:'cc',base:300},{name:'醬油',unit:'cc',base:15},{name:'香油',unit:'cc',base:5},{name:'鹽',unit:'g',base:2}],steps:['雞蛋打散，加高湯（蛋液：高湯 = 1：1.5）。','加鹽攪拌均勻，過篩去泡沫。','蓋上保鮮膜，電鍋外鍋放半杯水蒸。','蒸熟後淋醬油與香油即可。']},
+    {name:'豆腐燒肉末',time:'約 15 分鐘',ingredients:[{name:'板豆腐',unit:'g',base:300},{name:'豬絞肉',unit:'g',base:100},{name:'醬油',unit:'cc',base:20},{name:'蔥花',unit:'g',base:10},{name:'糖',unit:'g',base:5},{name:'沙拉油',unit:'cc',base:15}],steps:['豆腐切大塊，廚房紙巾稍微吸乾水分。','熱鍋下油，豆腐煎至兩面金黃後撥到一旁。','放入絞肉炒熟，加醬油、糖翻炒均勻。','加少許水燒至入味，起鍋撒蔥花。']},
+    {name:'紅燒豆腐',time:'約 15 分鐘',ingredients:[{name:'板豆腐',unit:'g',base:350},{name:'醬油',unit:'cc',base:25},{name:'糖',unit:'g',base:8},{name:'蔥段',unit:'g',base:15},{name:'薑末',unit:'g',base:5},{name:'沙拉油',unit:'cc',base:20},{name:'水',unit:'cc',base:80}],steps:['豆腐切厚片，熱鍋下油煎至兩面金黃。','推到鍋邊，爆香薑末與蔥段。','加醬油、糖、水翻炒均勻。','燒至湯汁略收即可起鍋。']},
+    {name:'蚵仔蒸蛋',time:'約 20 分鐘',ingredients:[{name:'新鮮蚵仔',unit:'g',base:100},{name:'雞蛋',unit:'顆',base:3,noScale:true},{name:'高湯或水',unit:'cc',base:280},{name:'醬油',unit:'cc',base:15},{name:'鹽',unit:'g',base:2}],steps:['蚵仔洗淨，雞蛋打散加高湯、鹽攪勻過篩。','先將蛋液蒸至半凝固（約 5 分鐘）。','放入蚵仔繼續蒸 5 分鐘至全熟。','淋上醬油即可上桌。']},
+    {name:'荷包蛋燒肉片',time:'約 15 分鐘',ingredients:[{name:'雞蛋',unit:'顆',base:3,noScale:true},{name:'豬肉薄片',unit:'g',base:150},{name:'醬油',unit:'cc',base:20},{name:'糖',unit:'g',base:5},{name:'薑末',unit:'g',base:5},{name:'沙拉油',unit:'cc',base:20}],steps:['熱鍋下油，分批煎好荷包蛋備用。','同鍋炒熟豬肉片，加薑末炒香。','加醬油、糖與少許水，放回荷包蛋。','小火燒 3 分鐘至入味即可。']},
+    {name:'蝦仁炒豆腐',time:'約 15 分鐘',ingredients:[{name:'嫩豆腐',unit:'g',base:300},{name:'蝦仁',unit:'g',base:100},{name:'蛋白',unit:'個',base:1,noScale:true},{name:'鹽',unit:'g',base:3},{name:'蔥花',unit:'g',base:10},{name:'沙拉油',unit:'cc',base:15}],steps:['蝦仁洗淨，用蛋白、鹽醃 5 分鐘。','嫩豆腐切塊，下油鍋輕輕煎至表面微黃。','放入蝦仁翻炒至變色。','加鹽調味，撒蔥花起鍋。']}
+  ],
+  soup:[
+    {name:'海帶芽蛋花湯',time:'約 15 分鐘',ingredients:[{name:'乾海帶芽',unit:'g',base:10},{name:'雞蛋',unit:'顆',base:1,noScale:true},{name:'薑片',unit:'g',base:5},{name:'鹽',unit:'g',base:3},{name:'香油',unit:'cc',base:5},{name:'水',unit:'cc',base:800}],steps:['乾海帶芽泡水 5 分鐘後瀝乾。','鍋中水燒開，放薑片與海帶芽煮 5 分鐘。','雞蛋打散，沿鍋邊慢慢倒入做蛋花。','加鹽調味，起鍋前滴幾滴香油。']},
+    {name:'味噌豆腐湯',time:'約 15 分鐘',ingredients:[{name:'嫩豆腐',unit:'g',base:200},{name:'味噌',unit:'g',base:30},{name:'蔥花',unit:'g',base:10},{name:'柴魚昆布高湯',unit:'cc',base:800}],steps:['高湯煮滾，豆腐切丁放入。','小火煮 3 分鐘後關火。','味噌用少量湯溶開後倒入鍋中，勿再開火。','撒上蔥花即可盛碗。']},
+    {name:'冬瓜排骨湯',time:'約 45 分鐘',ingredients:[{name:'豬排骨',unit:'g',base:300},{name:'冬瓜',unit:'g',base:400},{name:'薑片',unit:'g',base:10},{name:'鹽',unit:'g',base:5},{name:'水',unit:'cc',base:1200}],steps:['排骨汆燙去血水後洗淨。','冬瓜去皮切大塊。','所有材料放入電鍋，外鍋放 1.5 杯水蒸煮。','起鍋前加鹽調味即可。']},
+    {name:'大白菜肉片湯',time:'約 20 分鐘',ingredients:[{name:'大白菜',unit:'g',base:300},{name:'豬里肌薄片',unit:'g',base:150},{name:'薑片',unit:'g',base:10},{name:'鹽',unit:'g',base:4},{name:'香油',unit:'cc',base:5},{name:'水',unit:'cc',base:1000}],steps:['大白菜切段，豬肉片用少許鹽與太白粉抓醃。','水燒開後放薑片與白菜，煮至軟化。','放入肉片，用筷子撥散，小火煮熟。','加鹽調味，起鍋前滴香油。']},
+    {name:'玉米排骨湯',time:'約 45 分鐘',ingredients:[{name:'豬排骨',unit:'g',base:250},{name:'玉米',unit:'根',base:1,noScale:true},{name:'紅蘿蔔',unit:'g',base:100},{name:'薑片',unit:'g',base:10},{name:'鹽',unit:'g',base:5},{name:'水',unit:'cc',base:1200}],steps:['排骨汆燙後洗淨，玉米切段，紅蘿蔔滾刀切塊。','所有材料加水放電鍋，外鍋 1.5 杯水。','電鍋跳起後悶 10 分鐘。','加鹽調味即可。']},
+    {name:'蘿蔔貢丸湯',time:'約 20 分鐘',ingredients:[{name:'白蘿蔔',unit:'g',base:400},{name:'貢丸',unit:'g',base:150},{name:'薑片',unit:'g',base:10},{name:'鹽',unit:'g',base:4},{name:'香油',unit:'cc',base:5},{name:'水',unit:'cc',base:1000}],steps:['白蘿蔔去皮切塊，薑片備用。','水燒開放入蘿蔔與薑片，煮至蘿蔔透明（約 15 分鐘）。','放入貢丸再煮 5 分鐘。','加鹽調味，起鍋前滴香油。']},
+    {name:'蓮藕花生排骨湯',time:'約 50 分鐘',ingredients:[{name:'豬排骨',unit:'g',base:300},{name:'蓮藕',unit:'g',base:300},{name:'花生',unit:'g',base:60},{name:'薑片',unit:'g',base:10},{name:'鹽',unit:'g',base:5},{name:'水',unit:'cc',base:1200}],steps:['花生提前泡水 1 小時，排骨汆燙備用。','蓮藕去皮切厚片。','所有材料入電鍋，外鍋放 2 杯水。','電鍋跳起後悶 10 分鐘，加鹽調味。']}
+  ]
+};
+
+const DAYS = ['週一','週二','週三','週四','週五'];
+
+// ── State ──────────────────────────────────────────
+let currentDayIdx = 0;
+let activeDishId = null;
+let customDishes = {};
+let currentMenus = [];
+let checkedIngredients = {};  // key: dayIdx_ingName -> bool
+let savedRecipes = JSON.parse(localStorage.getItem('savedRecipes') || '[]');
+
+// ── Init ───────────────────────────────────────────
+function randPick(arr, n) {
+  const copy = [...arr];
+  const result = [];
+  for (let i = 0; i < n && copy.length; i++) {
+    const idx = Math.floor(Math.random() * copy.length);
+    result.push(copy.splice(idx, 1)[0]);
+  }
+  return result;
+}
+
+function buildMenus() {
+  return DAYS.map((day, i) => ({
+    day,
+    dishes: [
+      {...randPick(DISH_POOL.meat,1)[0], id:`meat_${i}_${Date.now()}`, tag:'肉類', tagClass:'tag-meat'},
+      {...randPick(DISH_POOL.veg,1)[0],  id:`veg_${i}_${Date.now()}`,  tag:'蔬菜', tagClass:'tag-veg'},
+      {...randPick(DISH_POOL.egg,1)[0],  id:`egg_${i}_${Date.now()}`,  tag:'蛋類', tagClass:'tag-egg'},
+      {...randPick(DISH_POOL.soup,1)[0], id:`soup_${i}_${Date.now()}`, tag:'湯品', tagClass:'tag-soup'},
+    ]
+  }));
+}
+
+async function refreshMenu() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;animation:spin .7s linear infinite">↻</span> 生成中…';
+  customDishes = {};
+  checkedIngredients = {};
+  activeDishId = null;
+  document.getElementById('customPanel').className = 'panel';
+  document.getElementById('detailPanel').className = 'panel';
+  try {
+    const prompt = `你是台灣家庭料理專家。請為一家五口產生一週（週一到週五）的晚餐菜單，每天三菜一湯。
+菜色風格要多元，涵蓋台灣家常、客家料理、台式熱炒店風格、日式家庭料理、15分鐘快速料理，同一週內不要重複使用相同的主要食材。
+只回傳 JSON，不要任何其他文字：
+{"days":[{"day":"週一","dishes":[
+{"name":"菜名","tag":"肉類","time":"約 X 分鐘","ingredients":[{"name":"食材","unit":"g或cc或顆","amount":數字}],"steps":["步驟1","步驟2","步驟3","步驟4"]},
+{"name":"菜名","tag":"蔬菜","time":"約 X 分鐘","ingredients":[{"name":"食材","unit":"g或cc或顆","amount":數字}],"steps":["步驟1","步驟2","步驟3"]},
+{"name":"菜名","tag":"蛋類","time":"約 X 分鐘","ingredients":[{"name":"食材","unit":"g或cc或顆","amount":數字}],"steps":["步驟1","步驟2","步驟3"]},
+{"name":"菜名","tag":"湯品","time":"約 X 分鐘","ingredients":[{"name":"食材","unit":"g或cc或顆","amount":數字}],"steps":["步驟1","步驟2","步驟3"]}
+]},週二到週五同格式]}
+規則：台灣菜市場容易買到的食材，每道菜60分鐘內完成，食材份量是3個成人份。`;
+    const raw = await callClaude(prompt);
+    const clean = raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    const m = clean.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('格式錯誤');
+    const data = JSON.parse(m[0]);
+    currentMenus = data.days.map((dayData, i) => ({
+      day: DAYS[i],
+      dishes: dayData.dishes.map((d, j) => ({
+        id: `ai_${i}_${j}_${Date.now()}`,
+        name: d.name, tag: d.tag,
+        tagClass: TAG_MAP[d.tag]||SLOT_TAGS[j],
+        time: d.time||'約 20 分鐘',
+        ingredients: d.ingredients.map(ing=>({name:ing.name,unit:ing.unit,base:ing.amount,noScale:true})),
+        steps: d.steps, isAI: true
+      }))
+    }));
+  } catch(e) {
+    currentMenus = buildMenus();
+  }
+  renderDays();
+  renderMenu();
+  btn.disabled = false;
+  btn.innerHTML = '<span class="refresh-icon">↻</span>換菜單';
+}
+
+// ── Tab ────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) =>
+    b.classList.toggle('active', ['menu','fridge','saved'][i] === tab));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  if (tab === 'saved') renderSaved();
+}
+
+// ── Days ───────────────────────────────────────────
+function renderDays() {
+  document.getElementById('dayStrip').innerHTML = DAYS.map((d,i) =>
+    `<button class="day-btn${i===currentDayIdx?' active':''}" onclick="setDay(${i})">${d}</button>`
+  ).join('');
+}
+
+function setDay(idx) {
+  currentDayIdx = idx;
+  activeDishId = null;
+  document.getElementById('customPanel').className = 'panel';
+  document.getElementById('detailPanel').className = 'panel';
+  renderDays();
+  renderMenu();
+}
+
+function getEffectiveDishes() {
+  return currentMenus[currentDayIdx].dishes.map((d,i) =>
+    customDishes[`${currentDayIdx}_${i}`] || d
+  );
+}
+
+// ── Menu ───────────────────────────────────────────
+function renderMenu() {
+  const dishes = getEffectiveDishes();
+  document.getElementById('menuGrid').innerHTML = dishes.map((d,i) => {
+    const isCustom = !!customDishes[`${currentDayIdx}_${i}`];
+    const isActive = activeDishId === d.id;
+    return `<div class="dish-card${isActive?' active':''}${isCustom?' has-custom':''}" onclick="showDish('${d.id}',${i})">
+      <div class="dish-tag ${d.tagClass}">${d.tag}</div>
+      <div class="dish-name">${d.name}</div>
+      <div class="dish-time">${d.time}</div>
+      <span class="edit-badge" onclick="openCustom(event,${i})">${isCustom?'修改':'自訂'}</span>
+    </div>`;
+  }).join('');
+  renderIngList();
+}
+
+// ── Custom dish ────────────────────────────────────
+function openCustom(e, slotIdx) {
+  e.stopPropagation();
+  activeDishId = null;
+  document.getElementById('detailPanel').className = 'panel';
+  const key = `${currentDayIdx}_${slotIdx}`;
+  const existing = customDishes[key];
+  const panel = document.getElementById('customPanel');
+  panel.innerHTML = `
+    <div class="panel-label">自訂「${SLOT_LABELS[slotIdx]}」<span>輸入菜名，由 AI 生成食譜</span></div>
+    <div class="input-row">
+      <input id="nameInput" type="text" placeholder="例如：蒜泥白肉、菜脯蛋…"
+        value="${existing?existing.name:''}" onkeydown="if(event.key==='Enter')doGenerate(${slotIdx})"/>
+      <button class="btn-accent" id="genBtn" onclick="doGenerate(${slotIdx})">
+        <div class="spinner" id="genSpinner"></div>
+        <span id="genTxt">生成</span>
+      </button>
+    </div>
+    <div class="err-msg" id="genErr"></div>
+    ${existing?`<div class="clear-link">目前：<strong>${existing.name}</strong>　<a onclick="clearCustom(${slotIdx})">恢復預設</a></div>`:''}
+  `;
+  panel.className = 'panel show';
+  setTimeout(()=>{ const el=document.getElementById('nameInput'); if(el) el.focus(); },100);
+}
+
+function clearCustom(slotIdx) {
+  delete customDishes[`${currentDayIdx}_${slotIdx}`];
+  document.getElementById('customPanel').className = 'panel';
+  activeDishId = null;
+  document.getElementById('detailPanel').className = 'panel';
+  renderMenu();
+}
+
+async function callClaude(prompt) {
+  const res = await fetch(WORKER_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:1500,
+      messages:[{role:'user',content:prompt}]
+    })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return data.content.map(c=>c.text||'').join('').trim();
+}
+
+async function doGenerate(slotIdx) {
+  const name = (document.getElementById('nameInput').value||'').trim();
+  if (!name) { document.getElementById('nameInput').focus(); return; }
+  const btn=document.getElementById('genBtn');
+  const sp=document.getElementById('genSpinner');
+  const txt=document.getElementById('genTxt');
+  const err=document.getElementById('genErr');
+  btn.disabled=true; sp.className='spinner show'; txt.textContent='生成中…'; err.className='err-msg';
+  const prompt=`你是台灣家庭料理專家。請為「${name}」生成一份適合一家五口（3個成人份）的食譜。
+只回傳 JSON，不要任何其他文字：
+{"name":"${name}","tag":"${SLOT_TAG_NAMES[slotIdx]}","time":"約 X 分鐘","ingredients":[{"name":"食材","unit":"g或cc或顆","amount":數字}],"steps":["步驟1","步驟2","步驟3","步驟4"]}
+規則：台灣菜市場容易買到的食材，備餐加烹飪在60分鐘內，份量已是3人份。`;
+  try {
+    const raw=await callClaude(prompt);
+    const clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    const m=clean.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('格式錯誤');
+    const r=JSON.parse(m[0]);
+    const dish={
+      id:`custom_${currentDayIdx}_${slotIdx}_${Date.now()}`,
+      name:r.name, tag:r.tag||SLOT_TAG_NAMES[slotIdx],
+      tagClass:TAG_MAP[r.tag]||SLOT_TAGS[slotIdx],
+      time:r.time||'約 20 分鐘',
+      ingredients:r.ingredients.map(i=>({name:i.name,unit:i.unit,base:i.amount,noScale:true})),
+      steps:r.steps, isAI:true
+    };
+    customDishes[`${currentDayIdx}_${slotIdx}`]=dish;
+    document.getElementById('customPanel').className='panel';
+    activeDishId=dish.id;
+    renderMenu();
+    renderDetail(dish);
+  } catch(e) {
+    err.textContent='生成失敗，請再試一次。（'+e.message+'）';
+    err.className='err-msg show';
+  } finally {
+    btn.disabled=false; sp.className='spinner'; txt.textContent='生成';
+  }
+}
+
+// ── Detail ─────────────────────────────────────────
+function showDish(dishId, slotIdx) {
+  document.getElementById('customPanel').className='panel';
+  if (activeDishId===dishId) {
+    activeDishId=null;
+    document.getElementById('detailPanel').className='panel';
+    renderMenu(); return;
+  }
+  activeDishId=dishId;
+  const dish=getEffectiveDishes()[slotIdx];
+  renderMenu();
+  renderDetail(dish);
+  setTimeout(()=>document.getElementById('detailPanel').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+function renderDetail(dish) {
+  const panel=document.getElementById('detailPanel');
+  if (!dish) { panel.className='panel'; return; }
+  const isSaved=savedRecipes.some(r=>r.name===dish.name);
+  const ings=dish.ingredients.map(ing=>{
+    const amt=ing.noScale?ing.base:Math.round(ing.base*SCALE);
+    return `<div class="ing-row"><span>${ing.name}</span><span class="ing-amt">${amt} ${ing.unit}</span></div>`;
+  }).join('');
+  const steps=dish.steps.map((s,i)=>
+    `<li><span class="step-num">${i+1}</span><span>${s}</span></li>`
+  ).join('');
+  const aiBadge=dish.isAI?`<span class="ai-badge">AI 生成</span>`:'';
+  panel.className='panel show';
+  panel.innerHTML=`
+    <div class="detail-header">
+      <span class="detail-title">${dish.name}</span>
+      ${aiBadge}
+      <span class="detail-time">${dish.time}</span>
+    </div>
+    <div class="section-label">備料清單（5 人份）</div>
+    ${ings}
+    <div class="section-label">烹飪步驟</div>
+    <ul class="steps-list">${steps}</ul>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button class="btn-save${isSaved?' saved':''}" id="saveBtn" onclick="toggleSave(${JSON.stringify(dish).replace(/"/g,'&quot;')})">
+        ${isSaved?'✓ 已收藏':'☆ 收藏食譜'}
+      </button>
+    </div>`;
+}
+
+// ── Ingredient checklist ───────────────────────────
+function renderIngList() {
+  const card=document.getElementById('ingListCard');
+  const allIng={};
+  getEffectiveDishes().forEach(dish=>{
+    dish.ingredients.forEach(ing=>{
+      const amt=ing.noScale?ing.base:Math.round(ing.base*SCALE);
+      const key=ing.name;
+      if (allIng[key]) { if(!ing.noScale) allIng[key].amt+=amt; }
+      else allIng[key]={amt,unit:ing.unit};
+    });
+  });
+
+  const rows=Object.entries(allIng).map(([name,v])=>{
+    const ck=checkedIngredients[`${currentDayIdx}_${name}`]||false;
+    return `<div class="ing-check-row${ck?' have':''}" onclick="toggleIng('${name.replace(/'/g,"\\'")}')">
+      <div class="ing-checkbox${ck?' checked':''}"></div>
+      <span class="ing-check-name">${name}</span>
+      <span class="ing-check-amt">${v.amt} ${v.unit}</span>
+      ${!ck?`<span class="need-buy-badge">需採購</span>`:''}
+    </div>`;
+  }).join('');
+
+  const needCount=Object.entries(allIng).filter(([name])=>
+    !checkedIngredients[`${currentDayIdx}_${name}`]
+  ).length;
+
+  card.style.display='block';
+  card.innerHTML=`
+    <div class="ing-list-header">
+      <span class="ing-list-title">今日食材需求清單</span>
+      <span class="ing-list-hint">還需採購 ${needCount} 項</span>
+    </div>
+    ${rows}
+    <div style="margin-top:10px;display:flex;gap:8px;">
+      <button class="btn-outline" onclick="clearChecked()" style="font-size:11px;">清除勾選</button>
+    </div>`;
+}
+
+function toggleIng(name) {
+  const key=`${currentDayIdx}_${name}`;
+  checkedIngredients[key]=!checkedIngredients[key];
+  renderIngList();
+}
+
+function clearChecked() {
+  Object.keys(checkedIngredients).forEach(k=>{
+    if(k.startsWith(`${currentDayIdx}_`)) delete checkedIngredients[k];
+  });
+  renderIngList();
+}
+
+// ── Save recipe ────────────────────────────────────
+function toggleSave(dish) {
+  const idx=savedRecipes.findIndex(r=>r.name===dish.name);
+  if (idx>=0) {
+    savedRecipes.splice(idx,1);
+  } else {
+    savedRecipes.unshift({...dish, savedAt: new Date().toLocaleDateString('zh-TW')});
+  }
+  localStorage.setItem('savedRecipes', JSON.stringify(savedRecipes));
+  if (activeDishId) {
+    const slotIdx=getEffectiveDishes().findIndex(d=>d.id===activeDishId);
+    if (slotIdx>=0) renderDetail(getEffectiveDishes()[slotIdx]);
+  }
+}
+
+function renderSaved() {
+  const list=document.getElementById('savedList');
+  if (!savedRecipes.length) {
+    list.innerHTML=`<div class="saved-empty">還沒有收藏任何食譜<br>在食譜下方點「☆ 收藏食譜」即可儲存<br>下次打開還會在這裡</div>`;
+    return;
+  }
+  list.innerHTML=savedRecipes.map((dish,i)=>{
+    const ings=dish.ingredients.map(ing=>
+      `<div class="ing-row"><span>${ing.name}</span><span class="ing-amt">${ing.base} ${ing.unit}</span></div>`
+    ).join('');
+    const steps=dish.steps.map((s,si)=>
+      `<li><span class="step-num">${si+1}</span><span>${s}</span></li>`
+    ).join('');
+    return `<div class="saved-card">
+      <div class="saved-card-header" onclick="toggleSavedBody(${i})">
+        <span class="saved-card-title">${dish.name}</span>
+        <span class="saved-card-tag ${dish.tagClass||'tag-meat'}">${dish.tag||''}</span>
+        <span class="saved-card-time">${dish.savedAt||''}</span>
+        <span class="saved-expand" id="expand-${i}">▼</span>
+      </div>
+      <div class="saved-card-body" id="body-${i}">
+        <div class="section-label">備料清單</div>
+        ${ings}
+        <div class="section-label">烹飪步驟</div>
+        <ul class="steps-list">${steps}</ul>
+        <div class="saved-actions">
+          <button class="btn-delete" onclick="deleteSaved(${i})">刪除收藏</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleSavedBody(i) {
+  const body=document.getElementById(`body-${i}`);
+  const arrow=document.getElementById(`expand-${i}`);
+  const isShow=body.classList.contains('show');
+  body.classList.toggle('show',!isShow);
+  arrow.textContent=isShow?'▼':'▲';
+}
+
+function deleteSaved(i) {
+  savedRecipes.splice(i,1);
+  localStorage.setItem('savedRecipes', JSON.stringify(savedRecipes));
+  renderSaved();
+}
+
+// ── Fridge ─────────────────────────────────────────
+async function analyzeFridge() {
+  const input=document.getElementById('fridgeInput').value.trim();
+  if (!input) { document.getElementById('fridgeInput').focus(); return; }
+  const btn=document.getElementById('fridgeBtn');
+  const sp=document.getElementById('fridgeSpinner');
+  const txt=document.getElementById('fridgeBtnText');
+  const err=document.getElementById('fridgeErr');
+  const result=document.getElementById('fridgeResult');
+  btn.disabled=true; sp.className='spinner show'; txt.textContent='分析中…';
+  err.className='err-msg'; result.className='fridge-result';
+  const prompt=`你是台灣家庭料理專家。根據以下冰箱食材，為一家五口推薦 3-4 道適合今晚做的菜（包含一道湯）。
+冰箱食材：${input}
+請回傳 JSON 格式，不要其他文字：
+{"dishes":[{"name":"菜名","description":"簡短說明用了哪些食材，口味如何","missing":"還需要買什麼（若不需要則填空字串）","tag":"肉類或蔬菜或蛋類或湯品"}]}
+要求：優先使用冰箱既有食材，不足的食材盡量少，適合台灣家常口味，60分鐘內可完成。`;
+  try {
+    const raw=await callClaude(prompt);
+    const clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    const m=clean.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('格式錯誤');
+    const data=JSON.parse(m[0]);
+    result.className='fridge-result show';
+    result.innerHTML=`
+      <div class="panel-label" style="margin-bottom:12px;">根據你的食材，推薦這幾道：</div>
+      ${data.dishes.map(d=>`
+        <div class="fridge-dish-card" onclick="getFridgeRecipe('${d.name.replace(/'/g,"\\'")}')">
+          <div class="fridge-dish-badge">${d.tag}</div>
+          <div class="fridge-dish-name">${d.name}</div>
+          <div class="fridge-dish-desc">${d.description}</div>
+          ${d.missing?`<div style="font-size:11px;color:var(--accent);margin-top:6px;">需補買：${d.missing}</div>`:''}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">點擊查看完整食譜 →</div>
+        </div>
+      `).join('')}`;
+  } catch(e) {
+    err.textContent='分析失敗，請再試一次。（'+e.message+'）';
+    err.className='err-msg show';
+  } finally {
+    btn.disabled=false; sp.className='spinner'; txt.textContent='幫我想菜色';
+  }
+}
+
+async function getFridgeRecipe(dishName) {
+  const overlay=document.getElementById('loadingOverlay');
+  const loadingText=document.getElementById('loadingText');
+  overlay.className='loading-overlay show';
+  loadingText.textContent=`生成「${dishName}」食譜中…`;
+  const prompt=`你是台灣家庭料理專家。請為「${dishName}」生成一份適合一家五口（3個成人份）的詳細食譜。
+只回傳 JSON，不要其他文字：
+{"name":"${dishName}","tag":"肉類或蔬菜或蛋類或湯品","time":"約 X 分鐘","ingredients":[{"name":"食材","unit":"g或cc或顆","amount":數字}],"steps":["步驟1","步驟2","步驟3","步驟4"]}`;
+  try {
+    const raw=await callClaude(prompt);
+    const clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    const m=clean.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('格式錯誤');
+    const r=JSON.parse(m[0]);
+    const dish={
+      id:`fridge_${Date.now()}`,
+      name:r.name, tag:r.tag,
+      tagClass:TAG_MAP[r.tag]||'tag-meat',
+      time:r.time||'約 20 分鐘',
+      ingredients:r.ingredients.map(i=>({name:i.name,unit:i.unit,base:i.amount,noScale:true})),
+      steps:r.steps, isAI:true
+    };
+    overlay.className='loading-overlay';
+    showFridgeRecipePanel(dish);
+  } catch(e) {
+    overlay.className='loading-overlay';
+    alert('食譜生成失敗：'+e.message);
+  }
+}
+
+function showFridgeRecipePanel(dish) {
+  const result=document.getElementById('fridgeResult');
+  const isSaved=savedRecipes.some(r=>r.name===dish.name);
+  const ings=dish.ingredients.map(ing=>
+    `<div class="ing-row"><span>${ing.name}</span><span class="ing-amt">${ing.base} ${ing.unit}</span></div>`
+  ).join('');
+  const steps=dish.steps.map((s,i)=>
+    `<li><span class="step-num">${i+1}</span><span>${s}</span></li>`
+  ).join('');
+  const recipeDiv=document.createElement('div');
+  recipeDiv.className='panel show';
+  recipeDiv.style.marginTop='14px';
+  recipeDiv.innerHTML=`
+    <div class="detail-header">
+      <span class="detail-title">${dish.name}</span>
+      <span class="ai-badge">AI 生成</span>
+      <span class="detail-time">${dish.time}</span>
+    </div>
+    <div class="section-label">備料清單（5 人份）</div>
+    ${ings}
+    <div class="section-label">烹飪步驟</div>
+    <ul class="steps-list">${steps}</ul>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button class="btn-save${isSaved?' saved':''}" onclick="toggleSaveFridge(this,${JSON.stringify(dish).replace(/"/g,'&quot;')})">
+        ${isSaved?'✓ 已收藏':'☆ 收藏食譜'}
+      </button>
+      <button class="btn-outline" onclick="this.closest('.panel').remove()">收起</button>
+    </div>`;
+  result.appendChild(recipeDiv);
+  setTimeout(()=>recipeDiv.scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+function toggleSaveFridge(btn, dish) {
+  const idx=savedRecipes.findIndex(r=>r.name===dish.name);
+  if (idx>=0) {
+    savedRecipes.splice(idx,1);
+    btn.textContent='☆ 收藏食譜';
+    btn.classList.remove('saved');
+  } else {
+    savedRecipes.unshift({...dish, savedAt:new Date().toLocaleDateString('zh-TW')});
+    btn.textContent='✓ 已收藏';
+    btn.classList.add('saved');
+  }
+  localStorage.setItem('savedRecipes', JSON.stringify(savedRecipes));
+}
+
+// ── Start ──────────────────────────────────────────
+currentMenus = buildMenus();
+renderDays();
+renderMenu();
+</script>
+</body>
+</html>
